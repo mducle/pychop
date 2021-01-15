@@ -33,11 +33,11 @@ try:
     from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
     from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar
 except ImportError:
-    from qtpy import PYQT4, PYQT5  # noqa
-    if PYQT4:
+    from qtpy import PYQT4, PYQT5, PYSIDE, PYSIDE2  # noqa
+    if PYQT4 or PYSIDE:
         from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
         from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-    elif PYQT5:
+    elif PYQT5 or PYSIDE2:
         from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
         from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
     else:
@@ -47,7 +47,7 @@ except ImportError:
         SET_DRAGGABLE_METHOD = "set_draggable"
     else:
         SET_DRAGGABLE_METHOD = "draggable"
-    def legend_set_draggable(legend, use_blit=False, update='loc'):
+    def legend_set_draggable(legend, state, use_blit=False, update='loc'):
         getattr(legend, SET_DRAGGABLE_METHOD)(state, use_blit, update)
 
 

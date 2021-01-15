@@ -17,7 +17,7 @@ try:
 except ImportError:
     within_mantid = False
     from qtpy.QtWidgets import QApplication
-    app = QApplication()
+    app = QApplication(sys.argv)
 else:
     set_matplotlib_backend()  # must be called before anything tries to use matplotlib
     app, within_mantid = get_qapplication()
