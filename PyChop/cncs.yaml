@@ -1,5 +1,5 @@
 name: CNCS
-# Input file for PyChop2 for the CNCS spectrometer at SNS.
+# Input file for PyChop for the CNCS spectrometer at SNS.
 # At a minium, the "chopper_system" and "moderator" entries must be present
 
 chopper_system:

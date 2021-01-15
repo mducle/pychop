@@ -1,5 +1,5 @@
 name: SEQUOIA
-# Input file for PyChop2 for the SEQUOIA spectrometer at SNS.
+# Input file for PyChop for the SEQUOIA spectrometer at SNS.
 
 chopper_system:
   name: SEQUOIA chopper system

@@ -183,7 +183,7 @@ def calcChopTimes(efocus, freq, instrumentpars, chop2Phase=5):
     efocus: The incident enrgy that all choppers are focussed on
     freq1: The frequency of the resolution choppers
     freqpr: frequency of the pulse removal chopper
-    instrumentpars: a list of instrument parameters [see ISISDisk.py]
+    instrumentpars: a list of instrument parameters [see Instruments.py]
     chop2Phase: the second choppers phase, adjustable to take the guessing out
 
     Original Matlab code R. Bewley STFC
