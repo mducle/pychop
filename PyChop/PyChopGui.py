@@ -25,12 +25,30 @@ from qtpy.QtCore import (QEventLoop, Qt)  # noqa
 from qtpy.QtWidgets import (QAction, QCheckBox, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout, QMenu, QLabel,
                             QLineEdit, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
                             QTextEdit, QVBoxLayout, QWidget)  # noqa
-from mantid.plots.utility import legend_set_draggable
-from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
-from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.widgets import Slider
+try:
+    from mantid.plots.utility import legend_set_draggable
+    from mantidqt.MPLwidgets import FigureCanvasQTAgg as FigureCanvas
+    from mantidqt.MPLwidgets import NavigationToolbar2QT as NavigationToolbar
+except ImportError:
+    from qtpy import PYQT4, PYQT5  # noqa
+    if PYQT4:
+        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+    elif PYQT5:
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+    else:
+        raise RuntimeError('Do not know which matplotlib backend to set')
+    from matplotlib.legend import Legend
+    if hasattr(Legend, "set_draggable"):
+        SET_DRAGGABLE_METHOD = "set_draggable"
+    else:
+        SET_DRAGGABLE_METHOD = "draggable"
+    def legend_set_draggable(legend, use_blit=False, update='loc'):
+        getattr(legend, SET_DRAGGABLE_METHOD)(state, use_blit, update)
 
 
 class PyChopGui(QMainWindow):
