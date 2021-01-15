@@ -116,17 +116,28 @@ class PyChopGui(QMainWindow):
         else:
             self.widgets['MultiRepCheck'].setEnabled(False)
             self.widgets['MultiRepCheck'].setChecked(False)
-        self.widgets['Chopper2Phase']['Edit'].hide()
-        self.widgets['Chopper2Phase']['Label'].hide()
+        self._hide_phases()
         if self.engine.chopper_system.isPhaseIndependent:
-            self.widgets['Chopper2Phase']['Edit'].show()
-            self.widgets['Chopper2Phase']['Label'].show()
-            self.widgets['Chopper2Phase']['Edit'].setText(str(self.engine.chopper_system.defaultPhase[0]))
-            self.widgets['Chopper2Phase']['Label'].setText(self.engine.chopper_system.phaseNames[0])
+            for idx in range(len(self.engine.chopper_system.isPhaseIndependent)):
+                if idx > self.n_indep_phase:
+                    chopper_number = self.engine.chopper_system.isPhaseIndependent[idx]
+                    phase_label = QLabel("")
+                    phase_edit = QLineEdit(self)
+                    phase_edit.returnPressed.connect(self.setFreq)
+                    self.leftPanel.insertWidget(self.phase_index, phase_edit)
+                    self.leftPanel.insertWidget(self.phase_index, phase_label)
+                    self.widgets[f"Chopper{idx}Phase"] = {'Edit':phase_edit, 'Label':phase_label}
+                    self.n_indep_phase += 1
+                    self.phase_index += 2
+                else:
+                    self.widgets[f"Chopper{idx}Phase"]['Edit'].show()
+                    self.widgets[f"Chopper{idx}Phase"]['Label'].show()
+                self.widgets[f"Chopper{idx}Phase"]['Edit'].setText(str(self.engine.chopper_system.defaultPhase[idx]))
+                self.widgets[f"Chopper{idx}Phase"]['Label'].setText(self.engine.chopper_system.phaseNames[idx])
             # Special case for MERLIN - hide phase control from normal users
             if 'MERLIN' in str(instname) and not self.instSciAct.isChecked():
-                self.widgets['Chopper2Phase']['Edit'].hide()
-                self.widgets['Chopper2Phase']['Label'].hide()
+                self.widgets['Chopper0Phase']['Edit'].hide()
+                self.widgets['Chopper0Phase']['Label'].hide()
         self.engine.setChopper(str(self.widgets['ChopperCombo']['Combo'].currentText()))
         self.engine.setFrequency(float(self.widgets['FrequencyCombo']['Combo'].currentText()))
         val = self.flxslder.val * self.maxE[self.engine.instname] / 100
@@ -151,21 +162,7 @@ class PyChopGui(QMainWindow):
         self.engine.setChopper(str(choppername))
         self.engine.setFrequency(float(self.widgets['FrequencyCombo']['Combo'].currentText()))
         # Special case for MERLIN - only enable multirep for 'G' chopper
-        if 'MERLIN' in self.engine.instname:
-            if 'G' in str(choppername):
-                self.widgets['MultiRepCheck'].setEnabled(True)
-                self.tabs.setTabEnabled(self.tdtabID, True)
-                self.widgets['Chopper2Phase']['Edit'].setText('1500')
-                self.widgets['Chopper2Phase']['Label'].setText('Disk chopper phase delay time')
-                if self.instSciAct.isChecked():
-                    self.widgets['Chopper2Phase']['Edit'].show()
-                    self.widgets['Chopper2Phase']['Label'].show()
-            else:
-                self.widgets['MultiRepCheck'].setEnabled(False)
-                self.widgets['MultiRepCheck'].setChecked(False)
-                self.tabs.setTabEnabled(self.tdtabID, False)
-                self.widgets['Chopper2Phase']['Edit'].hide()
-                self.widgets['Chopper2Phase']['Label'].hide()
+        self._merlin_chopper()
 
     def setFreq(self, freqtext=None, **kwargs):
         """
@@ -176,15 +173,41 @@ class PyChopGui(QMainWindow):
         if len(self.engine.getFrequency()) > 1 and (not hasattr(freq_in, '__len__') or len(freq_in)==1):
             freqpr = float(self.widgets['PulseRemoverCombo']['Combo'].currentText())
             freq_in = [freq_in, freqpr]
-        if not self.widgets['Chopper2Phase']['Label'].isHidden():
-            chop2phase = self.widgets['Chopper2Phase']['Edit'].text()
-            if isinstance(self.engine.chopper_system.defaultPhase[0], str):
-                chop2phase = str(chop2phase)
-            else:
-                chop2phase = float(chop2phase) % (1e6 / self.engine.moderator.source_rep)
-            self.engine.setFrequency(freq_in, phase=chop2phase)
+        # Checks for independent phases
+        phases = []
+        for key, widget in self.widgets.items():
+            if key.endswith('Phase') and not widget['Label'].isHidden():
+                idx = int(key[7])
+                phase = widget['Edit'].text()
+                if isinstance(self.engine.chopper_system.defaultPhase[idx], str):
+                    phase = str(phase)
+                else:
+                    phase = float(phase) % (1e6 / self.engine.moderator.source_rep)
+                phases.append(phase)
+        if phases:
+            self.engine.setFrequency(freq_in, phase=phases)
         else:
             self.engine.setFrequency(freq_in)
+
+    def _hide_phases(self):
+        for widget in [wdg for key, wdg in self.widgets.items() if key.endswith('Phase')]:
+            widget['Edit'].hide()
+            widget['Label'].hide()
+
+    def _merlin_chopper(self):
+        if 'MERLIN' in self.engine.instname:
+            if 'G' in self.engine.getChopper() and self.instSciAct.isChecked():
+                self.widgets['MultiRepCheck'].setEnabled(True)
+                self.tabs.setTabEnabled(self.tdtabID, True)
+                self.widgets['Chopper0Phase']['Edit'].setText('1500')
+                self.widgets['Chopper0Phase']['Label'].setText('Disk chopper phase delay time')
+                self.widgets['Chopper0Phase']['Edit'].show()
+                self.widgets['Chopper0Phase']['Label'].show()
+            else:
+                self.widgets['MultiRepCheck'].setEnabled(False)
+                self.widgets['MultiRepCheck'].setChecked(False)
+                self.tabs.setTabEnabled(self.tdtabID, False)
+                self._hide_phases()
 
     def setEi(self):
         """
@@ -334,7 +357,7 @@ class PyChopGui(QMainWindow):
         update = kwargs['update'] if 'update' in kwargs.keys() else False
         # Do not recalculate if all relevant parameters still the same.
         _, labels = self.flxaxes2.get_legend_handles_labels()
-        searchStr = '([A-Z]+) "(.+)" ([0-9]+) Hz'
+        searchStr = '([A-Z0-9]+) "(.+)" ([0-9]+) Hz'
         tmpinst = []
         if (labels and (overplot or len(labels) == 1)) or update:
             for prevtitle in labels:
@@ -417,7 +440,7 @@ class PyChopGui(QMainWindow):
         overplot = self.widgets['HoldCheck'].isChecked()
         # Do not recalculate if one of the plots has the same parametersc
         _, labels = self.frqaxes2.get_legend_handles_labels()
-        searchStr = '([A-Z]+) "(.+)" Ei = ([0-9.-]+) meV'
+        searchStr = '([A-Z0-9]+) "(.+)" Ei = ([0-9.-]+) meV'
         if labels and (overplot or len(labels) == 1):
             for prevtitle in labels:
                 prevInst, prevChop, prevEi = re.search(searchStr, prevtitle).groups()
@@ -464,15 +487,7 @@ class PyChopGui(QMainWindow):
         Callback function for the "Instrument Scientist Mode" menu option
         """
         # MERLIN is a special case - want to hide ability to change phase from users
-        if 'MERLIN' in self.engine.instname and 'G' in self.engine.getChopper():
-            if self.instSciAct.isChecked():
-                self.widgets['Chopper2Phase']['Edit'].show()
-                self.widgets['Chopper2Phase']['Label'].show()
-                self.widgets['Chopper2Phase']['Edit'].setText('1500')
-                self.widgets['Chopper2Phase']['Label'].setText('Disk chopper phase delay time')
-            else:
-                self.widgets['Chopper2Phase']['Edit'].hide()
-                self.widgets['Chopper2Phase']['Label'].hide()
+        self._merlin_chopper()
         if self.instSciAct.isChecked():
             self.tabs.insertTab(self.scrtabID, self.scrtab, 'ScriptOutput')
             self.scrtab.show()
@@ -751,7 +766,12 @@ class PyChopGui(QMainWindow):
         self.rightPanel = QVBoxLayout()
         self.tabs = QTabWidget(self)
         self.fullWindow = QGridLayout()
+        self.n_indep_phase = -1
+        idx = 0
         for widget in self.widgetslist:
+            if widget[-1] == 'Chopper2Phase':
+                self.phase_index = idx
+                continue
             if 'pair' in widget[0]:
                 self.droplabels.append(QLabel(widget[2]))
                 if 'combo' in widget[3]:
@@ -768,6 +788,7 @@ class PyChopGui(QMainWindow):
                     raise RuntimeError('Bug in code - widget %s is not recognised.' % (widget[3]))
                 self.leftPanel.addWidget(self.droplabels[-1])
                 self.leftPanel.addWidget(self.dropboxes[-1])
+                idx += 2
                 if 'hide' in widget[1]:
                     self.droplabels[-1].hide()
                     self.dropboxes[-1].hide()
@@ -781,11 +802,13 @@ class PyChopGui(QMainWindow):
                 else:
                     raise RuntimeError('Bug in code - widget %s is not recognised.' % (widget[3]))
                 self.leftPanel.addWidget(self.singles[-1])
+                idx += 1
                 if 'hide' in widget[1]:
                     self.singles[-1].hide()
                 self.widgets[widget[-1]] = self.singles[-1]
             elif 'spacer' in widget[0]:
                 self.leftPanel.addItem(QSpacerItem(0, 35))
+                idx += 1
             else:
                 raise RuntimeError('Bug in code - widget class %s is not recognised.' % (widget[0]))
 
