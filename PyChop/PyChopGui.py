@@ -61,6 +61,7 @@ class PyChopGui(QMainWindow):
     choppers = {}
     minE = {}
     maxE = {}
+    hyspecS2 = 35.
 
     def __init__(self):
         super(PyChopGui, self).__init__()
@@ -154,6 +155,14 @@ class PyChopGui(QMainWindow):
         self.tabs.setTabEnabled(self.qetabID, False)
         if self.engine.has_detector and hasattr(self.engine.detector, 'tthlims'):
             self.tabs.setTabEnabled(self.qetabID, True)
+        # show s2 for HYSPEC only
+        if 'HYSPEC' in str(instname):
+            self.widgets[f"S2Edit"]['Edit'].show()
+            self.widgets[f"S2Edit"]['Edit'].setText(str(self.hyspecS2))
+            self.widgets[f"S2Edit"]['Label'].show()
+        else:
+            self.widgets[f"S2Edit"]['Edit'].hide()
+            self.widgets[f"S2Edit"]['Label'].hide()
 
     def setChopper(self, choppername):
         """
@@ -221,6 +230,18 @@ class PyChopGui(QMainWindow):
         except ValueError:
             raise ValueError('No Ei specified, or Ei string not understood')
 
+    def setS2(self):
+        """
+        Sets the S2 tank rotation for HYSPEC instrument
+        """
+        try:
+            S2txt = float(self.widgets['S2Edit']['Edit'].text())
+        except:
+            raise ValueError('No S2 specified, or S2 string not understood')
+        if np.abs(S2txt) > 150:
+            raise ValueError('S2 must be between -150 and 150 degrees')
+        self.hyspecS2 = S2txt
+
     def calc_callback(self):
         """
         Calls routines to calculate the resolution / flux and to update the Matplotlib graphs.
@@ -229,6 +250,7 @@ class PyChopGui(QMainWindow):
             if self.engine.getChopper() is None:
                 self.setChopper(self.widgets['ChopperCombo']['Combo'].currentText())
             self.setEi()
+            self.setS2()
             self.setFreq()
             self.calculate()
             if self.errormess:
@@ -331,6 +353,12 @@ class PyChopGui(QMainWindow):
         E2q, meV2J = (2. * constants.m_n / (constants.hbar ** 2), constants.e / 1000.)
         en = np.linspace(-Ei / 5., Ei, 100)
         q2 = []
+        if self.engine.name == 'HYSPEC':
+            if abs(self.hyspecS2) <= 30:
+                self.engine.detector.tthlims = [0, abs(self.hyspecS2) + 30]
+            else:
+                self.engine.detector.tthlims = [abs(self.hyspecS2) - 30, abs(self.hyspecS2) + 30] 
+            label_text += '_S2={}'.format(self.hyspecS2)
         for tth in self.engine.detector.tthlims:
             q = np.sqrt(E2q * (2 * Ei - en - 2 * np.sqrt(Ei * (Ei - en)) * np.cos(np.deg2rad(tth))) * meV2J) / 1e10
             q2.append(np.concatenate((np.flipud(q), q)))
@@ -749,6 +777,7 @@ class PyChopGui(QMainWindow):
             ['pair', 'hide', 'Pulse remover chopper freq', 'combo', '', self.setFreq, 'PulseRemoverCombo'],
             ['pair', 'show', 'Ei', 'edit', '', self.setEi, 'EiEdit'],
             ['pair', 'hide', 'Chopper 2 phase delay time', 'edit', '5', self.setFreq, 'Chopper2Phase'],
+            ['pair', 'hide', 'S2', 'edit', '', self.setS2, 'S2Edit'],
             ['spacer'],
             ['single', 'show', 'Calculate and Plot', 'button', self.calc_callback, 'CalculateButton'],
             ['single', 'show', 'Hold current plot', 'check', lambda: None, 'HoldCheck'],
