@@ -250,7 +250,8 @@ class PyChopGui(QMainWindow):
             if self.engine.getChopper() is None:
                 self.setChopper(self.widgets['ChopperCombo']['Combo'].currentText())
             self.setEi()
-            self.setS2()
+            if self.engine.name=='HYSPEC':
+                self.setS2()
             self.setFreq()
             self.calculate()
             if self.errormess:
