@@ -21,7 +21,7 @@ import os
 import warnings
 import copy
 from .Instruments import Instrument
-from qtpy.QtCore import (QEventLoop, Qt)  # noqa
+from qtpy.QtCore import (QEventLoop, Qt, QProcess)  # noqa
 from qtpy.QtWidgets import (QAction, QCheckBox, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout, QMenu, QLabel,
                             QLineEdit, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
                             QTextEdit, QVBoxLayout, QWidget)  # noqa
@@ -47,6 +47,7 @@ except ImportError:
         SET_DRAGGABLE_METHOD = "set_draggable"
     else:
         SET_DRAGGABLE_METHOD = "draggable"
+
     def legend_set_draggable(legend, state, use_blit=False, update='loc'):
         getattr(legend, SET_DRAGGABLE_METHOD)(state, use_blit, update)
 
@@ -63,8 +64,10 @@ class PyChopGui(QMainWindow):
     maxE = {}
     hyspecS2 = 35.
 
-    def __init__(self):
-        super(PyChopGui, self).__init__()
+    def __init__(self, parent=None, window_flags=None):
+        super(PyChopGui, self).__init__(parent)
+        if window_flags:
+            self.setWindowFlags(window_flags)
         self.folder = os.path.dirname(sys.modules[self.__module__].__file__)
         for fname in os.listdir(self.folder):
             if fname.endswith('.yaml'):
@@ -78,6 +81,15 @@ class PyChopGui(QMainWindow):
         self.resaxes_xlim = 0
         self.qeaxes_xlim = 0
         self.isFramePlotted = 0
+        # help
+        self.assistant_process = QProcess(self)
+        # pylint: disable=protected-access
+        self.mantidplot_name = 'PyChop'
+
+    def closeEvent(self, event):
+        self.assistant_process.close()
+        self.assistant_process.waitForFinished()
+        event.accept()
 
     def setInstrument(self, instname):
         """
@@ -224,11 +236,12 @@ class PyChopGui(QMainWindow):
         """
         try:
             eitxt = float(self.widgets['EiEdit']['Edit'].text())
+        except ValueError:
+            self.errormessage('No Ei specified, or Ei string not understood')
+        else:
             self.engine.setEi(eitxt)
             if self.eiPlots.isChecked():
                 self.calc_callback()
-        except ValueError:
-            raise ValueError('No Ei specified, or Ei string not understood')
 
     def setS2(self):
         """
@@ -237,10 +250,12 @@ class PyChopGui(QMainWindow):
         try:
             S2txt = float(self.widgets['S2Edit']['Edit'].text())
         except:
-            raise ValueError('No S2 specified, or S2 string not understood')
-        if np.abs(S2txt) > 150:
-            raise ValueError('S2 must be between -150 and 150 degrees')
-        self.hyspecS2 = S2txt
+            self.errormessage('No S2 specified, or S2 string not understood')
+        else:
+            if np.abs(S2txt) > 150:
+                self.errormessage('S2 must be between -150 and 150 degrees')
+            else:
+                self.hyspecS2 = S2txt
 
     def calc_callback(self):
         """
@@ -257,16 +272,17 @@ class PyChopGui(QMainWindow):
             if self.errormess:
                 idx = [i for i, ei in enumerate(self.eis) if np.abs(ei - self.engine.getEi()) < 1.e-4]
                 if idx and self.flux[idx[0]] == 0:
-                    raise ValueError(self.errormess)
-                self.errormessage(self.errormess)
+                    raise ValueError(self.errormess) # No rep has any flux, skips plot
+                self.errormessage(self.errormess)    # Some rep have flux, still plot
             self.plot_res()
             self.plot_frame()
             if self.instSciAct.isChecked():
                 self.update_script()
         except ValueError as err:
             self.errormessage(err)
-        self.plot_flux_ei()
-        self.plot_flux_hz()
+        else:
+            self.plot_flux_ei()
+            self.plot_flux_hz()
 
     def calculate(self):
         """
@@ -292,7 +308,7 @@ class PyChopGui(QMainWindow):
                 self.res = self.engine.getResolution(en)
                 self.flux = self.engine.getFlux()
                 if len(w) > 0:
-                    raise ValueError(w[0].message)
+                    self.errormessage(w[0].message)
 
     def _set_overplot(self, overplot, axisname):
         axis = getattr(self, axisname)
@@ -358,7 +374,7 @@ class PyChopGui(QMainWindow):
             if abs(self.hyspecS2) <= 30:
                 self.engine.detector.tthlims = [0, abs(self.hyspecS2) + 30]
             else:
-                self.engine.detector.tthlims = [abs(self.hyspecS2) - 30, abs(self.hyspecS2) + 30] 
+                self.engine.detector.tthlims = [abs(self.hyspecS2) - 30, abs(self.hyspecS2) + 30]
             label_text += '_S2={}'.format(self.hyspecS2)
         for tth in self.engine.detector.tthlims:
             q = np.sqrt(E2q * (2 * Ei - en - 2 * np.sqrt(Ei * (Ei - en)) * np.cos(np.deg2rad(tth))) * meV2J) / 1e10
@@ -542,6 +558,7 @@ class PyChopGui(QMainWindow):
             new_inst = Instrument(yaml_file)
         except (RuntimeError, AttributeError, ValueError) as err:
             self.errormessage(err)
+            return
         newname = new_inst.name
         if newname in self.instruments.keys() and not self.overwriteload.isChecked():
             overwrite, newname = self._ask_overwrite()
@@ -611,7 +628,7 @@ class PyChopGui(QMainWindow):
             res = self.engine.getResolution(en)
         except ValueError as err:
             self.errormessage(err)
-            raise ValueError(err)
+            return
         tsqvan, tsqdic, tsqmodchop = obj.getVanVar()
         v_mod, v_chop = tuple(np.sqrt(tsqmodchop[:2]) * 1e6)
         x0, _, x1, x2, _ = obj.chopper_system.getDistances()
@@ -742,8 +759,8 @@ class PyChopGui(QMainWindow):
         Shows the help page
         """
         try:
-            from pymantidplot.proxies import showCustomInterfaceHelp
-            showCustomInterfaceHelp("PyChop")
+            from mantidqt.gui_helper import show_interface_help
+            show_interface_help(self.mantidplot_name, self.assistant_process, area='direct')
         except ImportError:
             helpTxt = "PyChop is a tool to allow direct inelastic neutron\nscattering users to estimate the inelastic resolution\n"
             helpTxt += "and incident flux for a given spectrometer setting.\n\nFirst select the instrument, chopper settings and\n"
