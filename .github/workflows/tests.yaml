@@ -1,0 +1,25 @@
+name: Run test and coverage
+
+on:
+    push:
+    pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Run tests
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install numpy scipy pyyaml coverage
+        coverage run --source=PyChop -m unittest tests/PyChopTest.py
+        coverage xml
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        fail_ci_if_error: true
