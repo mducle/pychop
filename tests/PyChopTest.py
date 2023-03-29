@@ -274,7 +274,6 @@ class PyChopGuiTests(unittest.TestCase):
             from PyChop import PyChopGui
             cls.window = PyChopGui.PyChopGui()
             cls.window.eiPlots.isChecked = mock.MagicMock(return_value=False)
-            cls.mock_modules.matplotlib.__version__ = '2.1.0'
 
     def test_hyspec(self):
         # Tests that Hyspec routines are only called when the instrument is Hyspec
@@ -293,7 +292,7 @@ class PyChopGuiTests(unittest.TestCase):
             assert self.window.hyspecS2 == 55
             # Valid values are from -150 to +150
             S2txt.return_value = '155'
-            self.window.setS2()
+            self.window._catch(self.window.setS2)()
             errmsg.assert_called()
 
     def test_plot_flux_ei(self):

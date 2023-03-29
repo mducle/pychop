@@ -26,7 +26,8 @@ technical reports:
 import numpy as np
 import collections
 import warnings
-warnings.simplefilter('always', UserWarning)
+
+warnings.simplefilter("always", UserWarning)
 
 # ------------------------------------------------------------------------------------------------- #
 # Chopper functions
@@ -37,31 +38,31 @@ def tchop(freq, Ei, pslit, radius, rho):
     """
     ! Calculates the time width of a Fermi chopper given its parameters, the Ei and frequency.
     """
-    p, R, w = tuple([pslit, radius, freq*2*np.pi])
+    p, R, w = tuple([pslit, radius, freq * 2 * np.pi])
     if p == 0.00 and R == 0.00 and rho == 0.00:
-        raise ValueError('PyChop: tchop(): slit width, chopper radius or curvature is zero!')
+        raise ValueError("PyChop: tchop(): slit width, chopper radius or curvature is zero!")
     # Calculate parameter gam:
     veloc = 437.3920 * np.sqrt(Ei)
-    gamm = (2.00*(R**2)/p) * abs(1.00/rho - 2.00*w/veloc)
+    gamm = (2.00 * (R**2) / p) * abs(1.00 / rho - 2.00 * w / veloc)
     # Find regime and calculate variance:
-    if hasattr(gamm, '__len__'):
+    if hasattr(gamm, "__len__"):
         tausqr = np.zeros(len(gamm))
-        pre = ((p/(2.00*R*w))**2/ 6.00)
+        pre = (p / (2.00 * R * w)) ** 2 / 6.00
         idx = np.where((gamm <= 1.0))
-        tausqr[idx] = pre * (1.00-(gamm[idx]**2)**2 /10.00) / (1.00-(gamm[idx]**2)/6.00)
-        idx = np.where((gamm > 1.0)*(gamm < 4.0))
+        tausqr[idx] = pre * (1.00 - (gamm[idx] ** 2) ** 2 / 10.00) / (1.00 - (gamm[idx] ** 2) / 6.00)
+        idx = np.where((gamm > 1.0) * (gamm < 4.0))
         groot = np.sqrt(gamm[idx])
-        #area[idx] = pre * 0.60 * gamm[idx] * ((groot-2.00)**2) * (groot+8.00) / (groot+4.00)
+        # area[idx] = pre * 0.60 * gamm[idx] * ((groot-2.00)**2) * (groot+8.00) / (groot+4.00)
     else:
         if gamm >= 4.00:
-            warnings.warn('PyChop: tchop(): No transmission at %5.3f meV at %3d Hz' % (Ei, freq))
+            warnings.warn("PyChop: tchop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq))
             return np.nan
         if gamm <= 1.00:
-            gsqr = (1.00-(gamm**2)**2 /10.00) / (1.00-(gamm**2)/6.00)
+            gsqr = (1.00 - (gamm**2) ** 2 / 10.00) / (1.00 - (gamm**2) / 6.00)
         else:
             groot = np.sqrt(gamm)
-            gsqr = 0.60 * gamm * ((groot-2.00)**2) * (groot+8.00) / (groot+4.00)
-        tausqr = ((p/(2.00*R*w))**2/ 6.00) * gsqr
+            gsqr = 0.60 * gamm * ((groot - 2.00) ** 2) * (groot + 8.00) / (groot + 4.00)
+        tausqr = ((p / (2.00 * R * w)) ** 2 / 6.00) * gsqr
     return tausqr
 
 
@@ -81,30 +82,31 @@ def achop(Ei, freq, dslat, pslit, radius, rho):
     !               =0  no problems
     !               =1  if no transmission  AREA set to zero
     """
-    _, p1, R1, rho1, w1 = tuple([dslat, pslit, radius, rho, freq*2*np.pi])
-    vela = 437.3920*np.sqrt(Ei)
-    gamm = (2.00*(R1**2)/p1) * abs(1.00/rho1 - 2.00*w1/vela)
+    _, p1, R1, rho1, w1 = tuple([dslat, pslit, radius, rho, freq * 2 * np.pi])
+    vela = 437.3920 * np.sqrt(Ei)
+    gamm = (2.00 * (R1**2) / p1) * abs(1.00 / rho1 - 2.00 * w1 / vela)
     # Find regime and calculate variance:
-    if hasattr(gamm, '__len__'):
+    if hasattr(gamm, "__len__"):
         area = np.zeros(len(gamm))
-        pre = (p1**2) / (2.00*R1*w1)
+        pre = (p1**2) / (2.00 * R1 * w1)
         idx = np.where(gamm <= 1.0)
-        area[idx] = pre * (1.-(gamm[idx]**2)/6.)
-        idx = np.where((gamm > 1.0)*(gamm < 4.0))
+        area[idx] = pre * (1.0 - (gamm[idx] ** 2) / 6.0)
+        idx = np.where((gamm > 1.0) * (gamm < 4.0))
         groot = np.sqrt(gamm[idx])
-        area[idx] = pre * groot * ((groot-2.0)**2) * (groot+4.0)/6.0
+        area[idx] = pre * groot * ((groot - 2.0) ** 2) * (groot + 4.0) / 6.0
     else:
         if gamm >= 4.00:
-            warnings.warn('PyChop: achop(): No transmission at %5.3f meV at %3d Hz' % (Ei, freq), UserWarning)
+            warnings.warn("PyChop: achop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq), UserWarning)
             return np.nan
         else:
             if gamm <= 1.00:
-                f1 = 1.00-(gamm**2)/6.00
+                f1 = 1.00 - (gamm**2) / 6.00
             else:
                 groot = np.sqrt(gamm)
-                f1 = groot * ((groot-2.00)**2) * (groot+4.00)/6.00
-        area = ((p1**2)/(2.00*R1*w1)) * f1
+                f1 = groot * ((groot - 2.00) ** 2) * (groot + 4.00) / 6.00
+        area = ((p1**2) / (2.00 * R1 * w1)) * f1
     return area
+
 
 # ------------------------------------------------------------------------------------------------- #
 # Moderator functions
@@ -115,14 +117,14 @@ def tikeda(S1, S2, B1, B2, Emod, Ei):
     """
     ! Calculates the moderator time width based on the Ikeda-Carpenter distribution
     """
-    Ei = np.array(Ei if hasattr(Ei, '__len__') else [Ei])
-    sig = np.sqrt((S1*S1) + ((S2*S2*81.8048)/Ei))
+    Ei = np.array(Ei if hasattr(Ei, "__len__") else [Ei])
+    sig = np.sqrt((S1 * S1) + ((S2 * S2 * 81.8048) / Ei))
     A = 4.37392e-4 * sig * np.sqrt(Ei)
     tausqr = []
     B = np.array([B1] * len(Ei))
     B[np.where(Ei > 130.0)] = B2
-    R = np.exp(-Ei/Emod)
-    tausqr = (3.0/(A**2)) + (R*(2.0-R)) / (B**2)
+    R = np.exp(-Ei / Emod)
+    tausqr = (3.0 / (A**2)) + (R * (2.0 - R)) / (B**2)
     # variance currently in mms**2. Convert to sec**2
     return (tausqr if len(tausqr) > 1 else tausqr[0]) * 1.0e-12
 
@@ -132,7 +134,7 @@ def tchi(delta, Ei):
     ! Calculates the moderator time width based on the Chi^2 distribution
     """
     vel = 437.392 * np.sqrt(Ei)
-    tausqr = ((delta/1.96)/ vel)**2
+    tausqr = ((delta / 1.96) / vel) ** 2
     return tausqr
 
 
@@ -141,7 +143,7 @@ def tchi_2(delta_0, delta_G, Ei):
     ! Calculates the moderator time width based on a modified Chi^2 distribution
     """
     vel = 437.392 * np.sqrt(Ei)
-    tausqr = (((delta_0+delta_G*np.sqrt(Ei))/1.96) / vel)**2
+    tausqr = (((delta_0 + delta_G * np.sqrt(Ei)) / 1.96) / vel) ** 2
     return tausqr
 
 
@@ -149,9 +151,9 @@ def flux_norm(ch_mod):
     """
     ! Returns an empirically determined flux normalisation factor for different ISIS moderators
     """
-    phi0 = {'A':1., 'AP':2.8, 'H2':1.8, 'CH4':2.6}
+    phi0 = {"A": 1.0, "AP": 2.8, "H2": 1.8, "CH4": 2.6}
     if ch_mod not in phi0.keys():
-        raise ValueError('Moderator %s is not supported in PyChop' % (ch_mod))
+        raise ValueError("Moderator %s is not supported in PyChop" % (ch_mod))
     return phi0[ch_mod]
 
 
@@ -166,27 +168,27 @@ def flux_fun(en_ev, ch_mod):
     !  Exit
     !     phifun : the functional dependace with energy
     """
-    if ch_mod == 'A':
-        raise ValueError('The ''A'' Moderator is not supported in PyChop')
-    elif ch_mod == 'AP':
-        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([0, 2.25, 0.032, 0.95, 120., 10., 0., 0., 0.])
-    elif ch_mod == 'H2':
-        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([1, 2.35, 0.0021, 0.95, 15.5, 3.1, 11., 0.254, 0.0275])
-    elif ch_mod == 'CH4':
-        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([0, 2.1, 0.011, 0.92, 55., 7., 0., 0., 0.])
+    if ch_mod == "A":
+        raise ValueError("The " "A" " Moderator is not supported in PyChop")
+    elif ch_mod == "AP":
+        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([0, 2.25, 0.032, 0.95, 120.0, 10.0, 0.0, 0.0, 0.0])
+    elif ch_mod == "H2":
+        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([1, 2.35, 0.0021, 0.95, 15.5, 3.1, 11.0, 0.254, 0.0275])
+    elif ch_mod == "CH4":
+        ijoin, rj, t, a, w1, w2, w3, w4, w5 = tuple([0, 2.1, 0.011, 0.92, 55.0, 7.0, 0.0, 0.0, 0.0])
     else:
-        raise ValueError('Moderator %s is not supported in PyChop' % (ch_mod))
+        raise ValueError("Moderator %s is not supported in PyChop" % (ch_mod))
     # Calculation:
-    phi_max = rj*(en_ev/(t**2)) * np.exp(-en_ev/t)
-    phi_epi = 1.00/(en_ev)**a
-    expon = np.exp(-w1/np.sqrt(1000.00*en_ev)+w2)
+    phi_max = rj * (en_ev / (t**2)) * np.exp(-en_ev / t)
+    phi_epi = 1.00 / (en_ev) ** a
+    expon = np.exp(-w1 / np.sqrt(1000.00 * en_ev) + w2)
     delt1 = expon / (1.00 + expon)
     if ijoin == 1:
-        expon = np.exp((w4 - 1.00/np.sqrt(1000.00*en_ev)) / w5)
-        delt2 = 1.00 + w3/(1.00 + expon)
+        expon = np.exp((w4 - 1.00 / np.sqrt(1000.00 * en_ev)) / w5)
+        delt2 = 1.00 + w3 / (1.00 + expon)
     else:
         delt2 = 1.00
-    phifun = phi_max + delt1*delt2*phi_epi
+    phifun = phi_max + delt1 * delt2 * phi_epi
     return phifun
 
 
@@ -197,10 +199,10 @@ def flux_calc(Ei, ch_mod, thetam):
     conv1 = 3.615
     conv2 = 9.104157e-12
     conv = conv1 * conv2
-    en_ev = Ei/1000.00
+    en_ev = Ei / 1000.00
     phi0 = flux_norm(ch_mod)
     phifun = flux_fun(en_ev, ch_mod)
-    flux = conv * (phi0*np.cos(thetam)) * (np.sqrt(en_ev)*phifun)
+    flux = conv * (phi0 * np.cos(thetam)) * (np.sqrt(en_ev) * phifun)
     return flux
 
 
@@ -213,10 +215,10 @@ def detect2(wd, hd, wf, idet, dd):
     """
     if idet == 1:
         # Davidson type scintillator detector
-        raise ValueError('Li detector not supported in Pychop')
+        raise ValueError("Li detector not supported in Pychop")
     elif idet == 2:
         # He cylindrical detectors binned together
-        rad = dd/2.0
+        rad = dd / 2.0
         atms = 10.0
         t2rad = 0.063
         effic, delta, ddsqr, v_dd, v_d = detect_he(wf, rad, atms, t2rad)
@@ -225,13 +227,13 @@ def detect2(wd, hd, wf, idet, dd):
         sigdd = np.sqrt(v_dd)
     else:
         # He cylindrical detector
-        rad = dd/2.0
+        rad = dd / 2.0
         atms = 10.0
         t2rad = 0.063
         effic, delta, ddsqr, v_dd, v_d = detect_he(wf, rad, atms, t2rad)
-        ndet = max(int(wd/dd), 1.)
-        space = 2.0*rad
-        v_d = v_d + (space**2) * (ndet**2 -1)/12.0
+        ndet = max(int(wd / dd), 1.0)
+        space = 2.0 * rad
+        v_d = v_d + (space**2) * (ndet**2 - 1) / 12.0
         sigd = np.sqrt(v_d)
         sigdz = hd / np.sqrt(12.0)
         sigdd = np.sqrt(v_dd)
@@ -283,14 +285,14 @@ def detect_he(wvec, rad, atms, t2rad):
     atmref = 10.0
     const = sigref * wref / atmref
     if rad < 0.0 or t2rad < 0.0 or t2rad > 1.0 or atms < 0.0:
-        raise ValueError('Error with detect_he input parameters')
+        raise ValueError("Error with detect_he input parameters")
     else:
-        reff = (rad*(1.0-t2rad))
-        var = 2.0 * (rad*(1.0-t2rad)) * (const*atms)
-        if wvec < (var*1.0e-18):
-            raise ValueError('Error with size of wavevector for input pars')
+        reff = rad * (1.0 - t2rad)
+        var = 2.0 * (rad * (1.0 - t2rad)) * (const * atms)
+        if wvec < (var * 1.0e-18):
+            raise ValueError("Error with size of wavevector for input pars")
         else:
-            alf = var/wvec
+            alf = var / wvec
             effic, delta, ddsqr, v_dd, v_d = tube_mts(alf)
             delta = delta * reff
             ddsqr = ddsqr * (reff**2)
@@ -321,8 +323,8 @@ def tube_mts(alf):
     !    IERR  returned as  0  ALF .ge. 0.0
     !                       1  ALF .lt. 0.0
     """
-    g0 = (32.0 - 3.0*(np.pi**2)) / 48.0
-    g1 = 14.0/3.0 - (np.pi**2)/8.0
+    g0 = (32.0 - 3.0 * (np.pi**2)) / 48.0
+    g1 = 14.0 / 3.0 - (np.pi**2) / 8.0
     c_eff_f = [0.7648360390553052, -0.3700950778935237, 0.1582704090813516,
                -6.0170218669705407e-02, 2.0465515957968953e-02, -6.2690181465706840e-03, 1.7408667184745830e-03,
                -4.4101378999425122e-04, 1.0252117967127217e-04, -2.1988904738111659e-05, 4.3729347905629990e-06,
@@ -394,38 +396,38 @@ def tube_mts(alf):
               -1.2478237332302910e-11, -3.8880659802842388e-12, 1.7635456983633446e-12, 1.2439449470491581e-12,
               -9.4195068411906391e-14, -3.4105815394092076e-13]
     if alf < 0:
-        raise ValueError('alf < 0, invalid choice')
+        raise ValueError("alf < 0, invalid choice")
     else:
         if alf <= 9.0:
-            eff = (np.pi/4.00) * alf * chbmts(0.00, 10.00, c_eff_f, 25, alf)
-            delta = -0.125 *alf * chbmts(0.00, 10.00, c_del_f, 25, alf)
+            eff = (np.pi / 4.00) * alf * chbmts(0.00, 10.00, c_eff_f, 25, alf)
+            delta = -0.125 * alf * chbmts(0.00, 10.00, c_del_f, 25, alf)
             xsqr = 0.25 * chbmts(0.00, 10.00, c_xsqr_f, 25, alf)
             vx = 0.25 * chbmts(0.00, 10.00, c_vx_f, 25, alf)
             vy = 0.25 * chbmts(0.00, 10.00, c_vy_f, 25, alf)
         elif alf >= 10.00:
-            y = 1.0 - 18.0/alf
-            eff = 1.00 - chbmts(-1.00, 1.00, c_eff_g, 25, y)/alf**2
-            delta = (2.0*chbmts(-1.00, 1.00, c_del_g, 25, y)/alf - 0.25*np.pi) / eff
-            xsqr = ((-np.pi/alf)* chbmts(-1.00, 1.00, c_xsqr_g, 25, y) + 2.0/3.0) / eff
-            vx = g0 + g1*chbmts(-1.00, 1.00, c_vx_g, 25, y)/(alf**2)
-            vy = (-chbmts(-1.00, 1.00, c_vy_g, 25, y)/(alf**2) + 1.0/3.0) / eff
+            y = 1.0 - 18.0 / alf
+            eff = 1.00 - chbmts(-1.00, 1.00, c_eff_g, 25, y) / alf**2
+            delta = (2.0 * chbmts(-1.00, 1.00, c_del_g, 25, y) / alf - 0.25 * np.pi) / eff
+            xsqr = ((-np.pi / alf) * chbmts(-1.00, 1.00, c_xsqr_g, 25, y) + 2.0 / 3.0) / eff
+            vx = g0 + g1 * chbmts(-1.00, 1.00, c_vx_g, 25, y) / (alf**2)
+            vy = (-chbmts(-1.00, 1.00, c_vy_g, 25, y) / (alf**2) + 1.0 / 3.0) / eff
         else:
-            eff_f = (np.pi/4.00) * alf * chbmts(0.00, 10.00, c_eff_f, 25, alf)
+            eff_f = (np.pi / 4.00) * alf * chbmts(0.00, 10.00, c_eff_f, 25, alf)
             del_f = -0.125 * alf * chbmts(0.00, 10.00, c_del_f, 25, alf)
-            xsqr_f = 0.25*chbmts(0.00, 10.00, c_xsqr_f, 25, alf)
-            vx_f = 0.25*chbmts(0.00, 10.00, c_vx_f, 25, alf)
-            vy_f = 0.25*chbmts(0.00, 10.00, c_vy_f, 25, alf)
-            y = 1.0 - 18.0/alf
-            eff_g = 1.00 - chbmts(-1.00, 1.00, c_eff_g, 25, y)/alf**2
-            del_g = (2.0*chbmts(-1.00, 1.00, c_del_g, 25, y)/alf - 0.25*np.pi) / eff_g
-            xsqr_g = ((-np.pi/alf)*chbmts(-1.00, 1.00, c_xsqr_g, 25, y) + 2.0/3.0) / eff_g
-            vx_g = g0 + g1*chbmts(-1.00, 1.00, c_vx_g, 25, y)/(alf**2)
-            vy_g = (-chbmts(-1.00, 1.00, c_vy_g, 25, y)/(alf**2) + 1.0/3.0) / eff_g
-            eff = (10.0-alf)*eff_f + (alf-9.0)*eff_g
-            delta = (10.0-alf)*del_f + (alf-9.0)*del_g
-            xsqr = (10.0-alf)*xsqr_f + (alf-9.0)*xsqr_g
-            vx = (10.0-alf)*vx_f + (alf-9.0)*vx_g
-            vy = (10.0-alf)*vy_f + (alf-9.0)*vy_g
+            xsqr_f = 0.25 * chbmts(0.00, 10.00, c_xsqr_f, 25, alf)
+            vx_f = 0.25 * chbmts(0.00, 10.00, c_vx_f, 25, alf)
+            vy_f = 0.25 * chbmts(0.00, 10.00, c_vy_f, 25, alf)
+            y = 1.0 - 18.0 / alf
+            eff_g = 1.00 - chbmts(-1.00, 1.00, c_eff_g, 25, y) / alf**2
+            del_g = (2.0 * chbmts(-1.00, 1.00, c_del_g, 25, y) / alf - 0.25 * np.pi) / eff_g
+            xsqr_g = ((-np.pi / alf) * chbmts(-1.00, 1.00, c_xsqr_g, 25, y) + 2.0 / 3.0) / eff_g
+            vx_g = g0 + g1 * chbmts(-1.00, 1.00, c_vx_g, 25, y) / (alf**2)
+            vy_g = (-chbmts(-1.00, 1.00, c_vy_g, 25, y) / (alf**2) + 1.0 / 3.0) / eff_g
+            eff = (10.0 - alf) * eff_f + (alf - 9.0) * eff_g
+            delta = (10.0 - alf) * del_f + (alf - 9.0) * del_g
+            xsqr = (10.0 - alf) * xsqr_f + (alf - 9.0) * xsqr_g
+            vx = (10.0 - alf) * vx_f + (alf - 9.0) * vx_g
+            vy = (10.0 - alf) * vy_f + (alf - 9.0) * vy_g
     return eff, delta, xsqr, vx, vy
 
 
@@ -435,13 +437,14 @@ def chbmts(a, b, c, m, x):
     """
     d = 0.0
     ddd = 0.0
-    y = (2.0*x-a-b)/(b-a)
-    for j in range(m-1, 0, -1):
+    y = (2.0 * x - a - b) / (b - a)
+    for j in range(m - 1, 0, -1):
         sv = d
-        d = 2.*y*d - ddd + c[j]
+        d = 2.0 * y * d - ddd + c[j]
         ddd = sv
-    out = y * d - ddd + 0.5*c[0]
+    out = y * d - ddd + 0.5 * c[0]
     return out
+
 
 # ------------------------------------------------------------------------------------------------- #
 # Sample functions
@@ -453,19 +456,19 @@ def sam0(sx, sy, sz, isam):
     ! Calculates the sample time widths
     """
     # Old code
-    #varx=1
-    #vary=1
-    #varz=1
+    # varx=1
+    # vary=1
+    # varz=1
     # RAE code (assumes plate sample, so correct for MAPS vanadium)
     # A more sophisticated version would do different things depending on sample type but usually
     # this contribution is small, and in any case this will be close enough for most geometries
     varx = 0
     # vary = ((sx)**2 + (sy)**2) # WRONG
-    vary = (sy**2)*sample_shape_scaling_factors[isam]
+    vary = (sy**2) * sample_shape_scaling_factors[isam]
     varz = 0
     return varx, vary, varz
 
 
 # Sample type: 0==flat plate, 1==ellipse, 2==annulus, 3==sphere, 4==solid cylinder
-sample_shape_scaling_factors = collections.defaultdict(lambda: 1./12)
-sample_shape_scaling_factors[2] = 1./8
+sample_shape_scaling_factors = collections.defaultdict(lambda: 1.0 / 12)
+sample_shape_scaling_factors[2] = 1.0 / 8
