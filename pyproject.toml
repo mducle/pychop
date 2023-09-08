@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyChop"
+dependencies = ['numpy', 'qtpy', 'matplotlib', 'PyYaml', 'scipy']
+dynamic = ["version"]
+
+#[project.optional-dependencies]
+# mantid = ['mantidqt', 'mantid']
+
+[project.scripts]
+PyChop = 'PyChop.__main__:gui'
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["PyChop*"]

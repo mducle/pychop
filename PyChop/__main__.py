@@ -23,7 +23,12 @@ else:
     app, within_mantid = get_qapplication()
  
 
-window = PyChopGui.PyChopGui()
-window.show()
-if not within_mantid:
-    sys.exit(app.exec_())
+def gui():
+    window = PyChopGui.PyChopGui()
+    window.show()
+    if not within_mantid:
+        sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    gui()
