@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyChop"
-dependencies = ['numpy', 'qtpy', 'matplotlib', 'PyYaml', 'scipy']
+dependencies = ['numpy', 'qtpy', 'pyqt5', 'matplotlib', 'PyYaml', 'scipy']
 dynamic = ["version"]
 
 #[project.optional-dependencies]
