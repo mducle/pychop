@@ -45,24 +45,24 @@ def tchop(freq, Ei, pslit, radius, rho):
     veloc = 437.3920 * np.sqrt(Ei)
     gamm = (2.00 * (R**2) / p) * abs(1.00 / rho - 2.00 * w / veloc)
     # Find regime and calculate variance:
-    if hasattr(gamm, "__len__"):
-        tausqr = np.zeros(len(gamm))
-        pre = (p / (2.00 * R * w)) ** 2 / 6.00
-        idx = np.where((gamm <= 1.0))
-        tausqr[idx] = pre * (1.00 - (gamm[idx] ** 2) ** 2 / 10.00) / (1.00 - (gamm[idx] ** 2) / 6.00)
-        idx = np.where((gamm > 1.0) * (gamm < 4.0))
-        groot = np.sqrt(gamm[idx])
-        # area[idx] = pre * 0.60 * gamm[idx] * ((groot-2.00)**2) * (groot+8.00) / (groot+4.00)
+    #if hasattr(gamm, "__len__"):
+    #    tausqr = np.zeros(len(gamm))
+    #    pre = (p / (2.00 * R * w)) ** 2 / 6.00
+    #    idx = np.where((gamm <= 1.0))
+    #    tausqr[idx] = pre * (1.00 - (gamm[idx] ** 2) ** 2 / 10.00) / (1.00 - (gamm[idx] ** 2) / 6.00)
+    #    idx = np.where((gamm > 1.0) * (gamm < 4.0))
+    #    groot = np.sqrt(gamm[idx])
+    #    tausqr[idx] = pre * 0.60 * gamm[idx] * ((groot-2.00)**2) * (groot+8.00) / (groot+4.00)
+    #else:
+    if gamm >= 4.00:
+        warnings.warn("PyChop: tchop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq))
+        return np.nan
+    if gamm <= 1.00:
+        gsqr = (1.00 - (gamm**2) ** 2 / 10.00) / (1.00 - (gamm**2) / 6.00)
     else:
-        if gamm >= 4.00:
-            warnings.warn("PyChop: tchop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq))
-            return np.nan
-        if gamm <= 1.00:
-            gsqr = (1.00 - (gamm**2) ** 2 / 10.00) / (1.00 - (gamm**2) / 6.00)
-        else:
-            groot = np.sqrt(gamm)
-            gsqr = 0.60 * gamm * ((groot - 2.00) ** 2) * (groot + 8.00) / (groot + 4.00)
-        tausqr = ((p / (2.00 * R * w)) ** 2 / 6.00) * gsqr
+        groot = np.sqrt(gamm)
+        gsqr = 0.60 * gamm * ((groot - 2.00) ** 2) * (groot + 8.00) / (groot + 4.00)
+    tausqr = ((p / (2.00 * R * w)) ** 2 / 6.00) * gsqr
     return tausqr
 
 
@@ -86,25 +86,25 @@ def achop(Ei, freq, dslat, pslit, radius, rho):
     vela = 437.3920 * np.sqrt(Ei)
     gamm = (2.00 * (R1**2) / p1) * abs(1.00 / rho1 - 2.00 * w1 / vela)
     # Find regime and calculate variance:
-    if hasattr(gamm, "__len__"):
-        area = np.zeros(len(gamm))
-        pre = (p1**2) / (2.00 * R1 * w1)
-        idx = np.where(gamm <= 1.0)
-        area[idx] = pre * (1.0 - (gamm[idx] ** 2) / 6.0)
-        idx = np.where((gamm > 1.0) * (gamm < 4.0))
-        groot = np.sqrt(gamm[idx])
-        area[idx] = pre * groot * ((groot - 2.0) ** 2) * (groot + 4.0) / 6.0
+    #if hasattr(gamm, "__len__"):
+    #    area = np.zeros(len(gamm))
+    #    pre = (p1**2) / (2.00 * R1 * w1)
+    #    idx = np.where(gamm <= 1.0)
+    #    area[idx] = pre * (1.0 - (gamm[idx] ** 2) / 6.0)
+    #    idx = np.where((gamm > 1.0) * (gamm < 4.0))
+    #    groot = np.sqrt(gamm[idx])
+    #    area[idx] = pre * groot * ((groot - 2.0) ** 2) * (groot + 4.0) / 6.0
+    #else:
+    if gamm >= 4.00:
+        warnings.warn("PyChop: achop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq), UserWarning)
+        return np.nan
     else:
-        if gamm >= 4.00:
-            warnings.warn("PyChop: achop(): No transmission at %5.3f meV at %3d Hz" % (Ei, freq), UserWarning)
-            return np.nan
+        if gamm <= 1.00:
+            f1 = 1.00 - (gamm**2) / 6.00
         else:
-            if gamm <= 1.00:
-                f1 = 1.00 - (gamm**2) / 6.00
-            else:
-                groot = np.sqrt(gamm)
-                f1 = groot * ((groot - 2.00) ** 2) * (groot + 4.00) / 6.00
-        area = ((p1**2) / (2.00 * R1 * w1)) * f1
+            groot = np.sqrt(gamm)
+            f1 = groot * ((groot - 2.00) ** 2) * (groot + 4.00) / 6.00
+    area = ((p1**2) / (2.00 * R1 * w1)) * f1
     return area
 
 
