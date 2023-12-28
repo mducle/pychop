@@ -24,7 +24,6 @@ technical reports:
 """
 
 import numpy as np
-import collections
 import warnings
 
 warnings.simplefilter("always", UserWarning)
@@ -462,13 +461,12 @@ def sam0(sx, sy, sz, isam):
     # RAE code (assumes plate sample, so correct for MAPS vanadium)
     # A more sophisticated version would do different things depending on sample type but usually
     # this contribution is small, and in any case this will be close enough for most geometries
+    def sample_shape_scaling_factors(typ):
+        # Sample type: 0==flat plate, 1==ellipse, 2==annulus, 3==sphere, 4==solid cylinder
+        # Factor is only correct for plate (1/12) and annulus (1/8)
+        return 1. / 8 if typ == 2 else 1. / 12
     varx = 0
     # vary = ((sx)**2 + (sy)**2) # WRONG
-    vary = (sy**2) * sample_shape_scaling_factors[isam]
+    vary = (sy**2) * sample_shape_scaling_factors(isam)
     varz = 0
     return varx, vary, varz
-
-
-# Sample type: 0==flat plate, 1==ellipse, 2==annulus, 3==sphere, 4==solid cylinder
-sample_shape_scaling_factors = collections.defaultdict(lambda: 1.0 / 12)
-sample_shape_scaling_factors[2] = 1.0 / 8
