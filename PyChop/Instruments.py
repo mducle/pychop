@@ -17,7 +17,6 @@ from . import Chop, MulpyRep
 from scipy.interpolate import interp1d
 from scipy.special import erf
 from scipy import constants
-from scipy.optimize import curve_fit
 
 # Some global constants
 SIGMA2FWHM = 2 * np.sqrt(2 * np.log(2))
@@ -953,13 +952,6 @@ class Instrument(object):
         ! Instrument.calculate('merlin', 'g', 450., 60., range(55))
         ! Instrument.calculate('maps', 'a', 450., 600., etrans=np.linspace(0,550,55))
         !
-        ! For fast calculations, one can return a polynomial approximation (cubic) of the
-        ! resolution function. By passing etrans='polynomial', the calculator estimates the
-        ! resolution for etrans=np.arange(-Ei, Ei, Ei*0.01) then fits it to a cubic polynomial.
-        ! The resolution is then an array with coefficients, from the lowest power.
-        !
-        ! res, flux = Instrument.calculate(inst='cncs', variant='High flux', freq=240, ei=1.5, etrans='polynomial')
-        !
         ! The results are returned as tuple: (resolution, flux)
         """
         argdict = argparser(args, kwargs, ["inst", "package", "frequency", "ei", "etrans", "variant"])
@@ -971,26 +963,14 @@ class Instrument(object):
         if argdict["variant"]:
             obj.variant = argdict["variant"]
         etrans = argdict["etrans"]
-        return_polynomial = False
         if etrans is None:
             etrans = 0.0
         else:
-            if etrans == "polynomial":
-                return_polynomial = True
-                etrans = np.arange(-obj.ei, obj.ei, obj.ei * 0.01)
             try:
                 etrans = float(etrans)
             except TypeError:
                 etrans = np.asfarray(etrans)
         res = obj.getResolution(etrans)
-
-        if return_polynomial:
-
-            def cubic(x, x_0, x_1, x_2, x_3):
-                return x_0 + x_1 * x + x_2 * x**2 + x_3 * x**3
-
-            popt, pcov = curve_fit(cubic, etrans, res)
-            res = popt
         flux = obj.getFlux()
         return res, flux
 
