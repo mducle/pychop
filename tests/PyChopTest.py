@@ -99,8 +99,8 @@ class PyChop2Tests(unittest.TestCase):
                     24196.496233770937, 5747.118187298609, 22287.647098883135, 4063.3113893387676]
         for inst, ch, frq, ei, res0, flux0 in zip(instruments, choppers, freqs, eis, ref_res, ref_flux):
             res, flux = PyChop2.calculate(inst, ch, frq, ei, 0)
-            self.assertAlmostEqual(res[0], res0, places=3)
-            self.assertAlmostEqual(flux[0], flux0, places=3)
+            np.testing.assert_allclose(res[0], res0, rtol=1e-7, atol=0)
+            np.testing.assert_allclose(flux[0], flux0, rtol=1e-7, atol=0)
 
 
 class MockedModule(mock.MagicMock):

@@ -14,16 +14,26 @@ import yaml
 import warnings
 import copy
 from . import Chop, MulpyRep
-from scipy.interpolate import interp1d
-from scipy.special import erf
-from scipy import constants
+from math import erf
 
 # Some global constants
 SIGMA2FWHM = 2 * np.sqrt(2 * np.log(2))
 SIGMA2FWHMSQ = SIGMA2FWHM**2
-E2V = np.sqrt((constants.e / 1000) * 2 / constants.neutron_mass)  # v = E2V * sqrt(E)    veloc in m/s, E in meV
-E2L = 1.0e23 * constants.h**2 / (2 * constants.m_n * constants.e)  # lam = sqrt(E2L / E)  lam in Angst, E in meV
-E2K = constants.e * 2 * constants.m_n / constants.hbar**2 / 1e23  # k = sqrt(E2K * E)    k in 1/Angst, E in meV
+#from scipy import constants
+#E2V = np.sqrt((constants.e / 1000) * 2 / constants.neutron_mass)  # v = E2V * sqrt(E)    veloc in m/s, E in meV
+#E2L = 1.0e23 * constants.h**2 / (2 * constants.m_n * constants.e)  # lam = sqrt(E2L / E)  lam in Angst, E in meV
+#E2K = constants.e * 2 * constants.m_n / constants.hbar**2 / 1e23  # k = sqrt(E2K * E)    k in 1/Angst, E in meV
+E2V = 437.393362604208619
+E2L = 81.8042103582802156
+E2K = 0.48259640220781652
+
+try:
+    from scipy.interpolate import interp1d
+except ModuleNotFoundError:
+    def interp1d(xp, yp, **kwargs):
+        # Emulates scipy's interp1d using numpy's linear interpolation (ignore 'kind' kwargs)
+        # Note that this is only accurate to about 1% compared with scipy's spline interpolation
+        return lambda x: np.interp(x, xp, yp)
 
 
 def wrap_attributes(obj, inval, allowed_var_names):
