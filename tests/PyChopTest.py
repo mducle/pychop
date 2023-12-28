@@ -87,6 +87,21 @@ class PyChop2Tests(unittest.TestCase):
             assert "Cannot calculate for energy transfer greater than Ei" in str(w[0].message)
             assert np.isnan(res[0])
 
+    def test_pychop_numerics(self):
+        # Tests all instruments resolution and flux values against reference
+        instruments = ["ARCS", "CNCS", "HYSPEC", "LET", "MAPS", "MARI", "MERLIN", "SEQUOIA"]
+        choppers = ["ARCS-100-1.5-AST", "High Flux", "OnlyOne", "High Flux", "S", "S", "G", "SEQ-100-2.0-AST"]
+        freqs = [ [300], [300, 60], [180], [240, 120], [400, 50], [400], [400], [300] ]
+        eis = [120, 3.7, 45, 3.7, 120, 80, 120, 120]
+        ref_res = [10.278744237772832, 0.13188102618129077, 3.6751279831313703, 0.08079912729715726,
+                   4.9611687063450995, 2.6049587487601764, 6.8755979524827255, 5.396705255853653]
+        ref_flux = [2055.562054927915, 128986.24972543867, 0.014779264739956933, 45438.33797146135,
+                    24196.496233770937, 5747.118187298609, 22287.647098883135, 4063.3113893387676]
+        for inst, ch, frq, ei, res0, flux0 in zip(instruments, choppers, freqs, eis, ref_res, ref_flux):
+            res, flux = PyChop2.calculate(inst, ch, frq, ei, 0)
+            np.testing.assert_allclose(res[0], res0, rtol=1e-7, atol=0)
+            np.testing.assert_allclose(flux[0], flux0, rtol=1e-7, atol=0)
+
 
 class MockedModule(mock.MagicMock):
     # A class which is meant to act like a module
@@ -232,6 +247,22 @@ class PyChopGuiTests(unittest.TestCase):
                     self.__dict__[attribute] = mock.MagicMock()
                 return self.__dict__[attribute]
 
+        class fake_QLineEdit(mock.MagicMock):                     # noqa: E306
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.value = '1.0'
+
+            def setText(self, value):                             # noqa: E306
+                self.value = value
+
+            def text(self):                                       # noqa: E306
+                return self.value
+
+            def __getattr__(self, attribute):                     # noqa: E306
+                if attribute not in self.__dict__:
+                    self.__dict__[attribute] = mock.MagicMock()
+                return self.__dict__[attribute]
+
         class fake_Line(mock.MagicMock):                          # noqa: E306
             def __init__(self, parent, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -267,6 +298,7 @@ class PyChopGuiTests(unittest.TestCase):
         cls.mock_modules = MockImports(include=['qtpy', 'matplotlib', 'mantidqt', 'mantid.plots'],
                                        replace={'QMainWindow':fake_QMainWindow,
                                                 'QComboBox':MockedModule(mock_class=fake_QCombo),
+                                                'QLineEdit':MockedModule(mock_class=fake_QLineEdit),
                                                 'Figure':MockedModule(mock_class=fake_Figure),
                                                 'Slider':MockedModule(mock_class=fake_Slider)})
         # Mess around with import mechanism _inside_ PyChopGui so GUI libs not really imported
@@ -282,6 +314,8 @@ class PyChopGuiTests(unittest.TestCase):
             self.window.calc_callback()
             setS2.assert_not_called()
             self.window.setInstrument('HYSPEC')
+            self.window.widgets['EiEdit']['Edit'].setText('50')
+            self.window.setEi()
             self.window.calc_callback()
             setS2.assert_called()
         # Test that the value of S2 is set correctly

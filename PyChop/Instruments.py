@@ -14,17 +14,26 @@ import yaml
 import warnings
 import copy
 from . import Chop, MulpyRep
-from scipy.interpolate import interp1d
-from scipy.special import erf
-from scipy import constants
-from scipy.optimize import curve_fit
+from math import erf
 
 # Some global constants
 SIGMA2FWHM = 2 * np.sqrt(2 * np.log(2))
 SIGMA2FWHMSQ = SIGMA2FWHM**2
-E2V = np.sqrt((constants.e / 1000) * 2 / constants.neutron_mass)  # v = E2V * sqrt(E)    veloc in m/s, E in meV
-E2L = 1.0e23 * constants.h**2 / (2 * constants.m_n * constants.e)  # lam = sqrt(E2L / E)  lam in Angst, E in meV
-E2K = constants.e * 2 * constants.m_n / constants.hbar**2 / 1e23  # k = sqrt(E2K * E)    k in 1/Angst, E in meV
+#from scipy import constants
+#E2V = np.sqrt((constants.e / 1000) * 2 / constants.neutron_mass)  # v = E2V * sqrt(E)    veloc in m/s, E in meV
+#E2L = 1.0e23 * constants.h**2 / (2 * constants.m_n * constants.e)  # lam = sqrt(E2L / E)  lam in Angst, E in meV
+#E2K = constants.e * 2 * constants.m_n / constants.hbar**2 / 1e23  # k = sqrt(E2K * E)    k in 1/Angst, E in meV
+E2V = 437.393362604208619
+E2L = 81.8042103582802156
+E2K = 0.48259640220781652
+
+try:
+    from scipy.interpolate import interp1d
+except ModuleNotFoundError:
+    def interp1d(xp, yp, **kwargs):
+        # Emulates scipy's interp1d using numpy's linear interpolation (ignore 'kind' kwargs)
+        # Note that this is only accurate to about 1% compared with scipy's spline interpolation
+        return lambda x: np.interp(x, xp, yp)
 
 
 def wrap_attributes(obj, inval, allowed_var_names):
@@ -81,7 +90,7 @@ class FermiChopper(object):
     Class which represents a Fermi chopper package
     """
 
-    __allowed_var_names = ["name", "pslit", "pslat", "radius", "rho", "tjit", "fluxcorr", "isPi"]
+    __allowed_var_names = ["name", "pslit", "pslat", "radius", "rho", "tjit", "fluxcorr", "isPi", "ei_limits"]
 
     def __init__(self, inval=None):
         wrap_attributes(self, inval, self.__allowed_var_names)
@@ -100,6 +109,14 @@ class FermiChopper(object):
         """Calculates the chopper transmission"""
         dslat = (self.pslit + self.pslat) / 1000
         return Chop.achop(Ei, freq, dslat, self.pslit / 1000.0, self.radius / 1000.0, self.rho / 1000.0) / dslat
+
+    @property
+    def emin(self):
+        return self.ei_limits[0] if hasattr(self, "ei_limits") else 0.1
+
+    @property
+    def emax(self):
+        return self.ei_limits[1] if hasattr(self, "ei_limits") else 1000.
 
 
 class ChopperSystem(object):
@@ -263,6 +280,10 @@ class ChopperSystem(object):
 
     def setEi(self, Ei):
         """Sets the (focussed) incident energy"""
+        emin = max(self.emin, self.packages[self.package].emin if self.isFermi else 0)
+        emax = min(self.emax, self.packages[self.package].emax if self.isFermi else np.inf)
+        if Ei < emin or Ei > emax:
+            raise ValueError(f'Ei={Ei} is outside limits [{emin}, {emax}]')
         self.ei = Ei
 
     def getEi(self):
@@ -941,13 +962,6 @@ class Instrument(object):
         ! Instrument.calculate('merlin', 'g', 450., 60., range(55))
         ! Instrument.calculate('maps', 'a', 450., 600., etrans=np.linspace(0,550,55))
         !
-        ! For fast calculations, one can return a polynomial approximation (cubic) of the
-        ! resolution function. By passing etrans='polynomial', the calculator estimates the
-        ! resolution for etrans=np.arange(-Ei, Ei, Ei*0.01) then fits it to a cubic polynomial.
-        ! The resolution is then an array with coefficients, from the lowest power.
-        !
-        ! res, flux = Instrument.calculate(inst='cncs', variant='High flux', freq=240, ei=1.5, etrans='polynomial')
-        !
         ! The results are returned as tuple: (resolution, flux)
         """
         argdict = argparser(args, kwargs, ["inst", "package", "frequency", "ei", "etrans", "variant"])
@@ -959,26 +973,14 @@ class Instrument(object):
         if argdict["variant"]:
             obj.variant = argdict["variant"]
         etrans = argdict["etrans"]
-        return_polynomial = False
         if etrans is None:
             etrans = 0.0
         else:
-            if etrans == "polynomial":
-                return_polynomial = True
-                etrans = np.arange(-obj.ei, obj.ei, obj.ei * 0.01)
             try:
                 etrans = float(etrans)
             except TypeError:
                 etrans = np.asfarray(etrans)
         res = obj.getResolution(etrans)
-
-        if return_polynomial:
-
-            def cubic(x, x_0, x_1, x_2, x_3):
-                return x_0 + x_1 * x + x_2 * x**2 + x_3 * x**3
-
-            popt, pcov = curve_fit(cubic, etrans, res)
-            res = popt
         flux = obj.getFlux()
         return res, flux
 
