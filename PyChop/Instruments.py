@@ -290,7 +290,7 @@ class ChopperSystem(object):
         return self.ei
 
     def getAllowedEi(self, Ei_in=None):
-        return set(np.round(self._MulpyRepDriver(Ei_in, calc_res=False)[0], decimals=4))
+        return list(set(np.round(self._MulpyRepDriver(Ei_in, calc_res=False)[0], decimals=4)))
 
     def plotMultiRepFrame(self, h_plt=None, Ei_in=None, frequency=None, first_rep=False):
         """
@@ -604,14 +604,8 @@ class Moderator(object):
 
     def getWidthSquared(self, Ei):
         """Returns the squared time gaussian FWHM width due to the sample in s^2"""
-        if hasattr(self, "width_interp"):
-            wavelength = np.sqrt(E2L / (Ei if not hasattr(Ei, "__len__") else Ei[0]))
-            if wavelength >= self.wmn:
-                # Data is obtained from measuring widths of powder Bragg peaks in backscattering
-                # At low wavelengths / high energies, the peaks are too close together to discern
-                # so there is no measurements, but the analytical expressions should still be good.
-                width = self.width_interp(min([wavelength, self.wmx])) ** 2 / 1e12
-                return (width * SIGMA2FWHMSQ) if self.measured_width["isSigma"] else width
+        if hasattr(self, "width_interp") or self.imod == 3:
+            return self.getWidth(Ei) ** 2
         return self.getAnalyticWidthsSquared(Ei)
 
     def getWidth(self, Ei):
@@ -619,13 +613,16 @@ class Moderator(object):
         if hasattr(self, "width_interp"):
             wavelength = np.sqrt(E2L / (Ei if not hasattr(Ei, "__len__") else Ei[0]))
             if wavelength >= self.wmn:
+                # Data is obtained from measuring widths of powder Bragg peaks in backscattering
+                # At low wavelengths / high energies, the peaks are too close together to discern
+                # so there is no measurements, but the analytical expressions should still be good.
                 width = self.width_interp(min([wavelength, self.wmx])) / 1e6  # Table has widths in microseconds
                 return width * SIGMA2FWHM if self.measured_width["isSigma"] else width
         if self.imod == 3:
             # Mode for LET - output of polynomial is FWHM in us
             return np.polyval(self.mod_pars, np.sqrt(E2L / Ei)) / 1e6
         else:
-            return np.sqrt(self.getAnalyticWidthSquared(Ei))
+            return np.sqrt(self.getAnalyticWidthsSquared(Ei))
 
     def getFlux(self, Ei):
         """Returns the white beam flux estimate from either measured data (preferred) or analytical model (backup)"""
@@ -854,7 +851,7 @@ class Instrument(object):
         Ei = _check_input(self.chopper_system, Ei_in)
         if Etrans is None:
             Etrans = np.linspace(0.05, 0.95, 19, endpoint=True)
-        return [self.getResolution(Etrans * ei, ei, frequency) for ei in self.getAllowedEi(Ei)]
+        return [self.getResolution(np.array(Etrans) * ei, ei, frequency) for ei in self.getAllowedEi(Ei)]
 
     def getVanVar(self, Ei_in=None, frequency=None, Etrans=0):
         """Calculates the time squared FWHM in s^2 at the sample (Vanadium widths) for different components"""
