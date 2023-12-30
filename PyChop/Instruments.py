@@ -85,6 +85,17 @@ def soft_hat(x, p):
     return y
 
 
+class PltDummy(object):
+    # Class to act as a dummy saving all "plot" and "text" commands to a list
+    def __init__(self):
+        self.history = []
+    def __getattr__(self, name):
+        def passthrough(*args, **kwargs):
+            if name == 'plot' or name == 'text':
+                self.history.append([name, args, kwargs])
+        return passthrough
+
+
 class FermiChopper(object):
     """
     Class which represents a Fermi chopper package
@@ -159,6 +170,7 @@ class ChopperSystem(object):
         self._parse_variants()
         self.phase = self.defaultPhase
         self.frequency = self.default_frequencies
+        self.not_warn = True
 
     def __repr__(self):
         return self.name if self.name else "Undefined disk chopper system"
@@ -301,8 +313,12 @@ class ChopperSystem(object):
             try:
                 from matplotlib import pyplot
             except ImportError:
-                raise RuntimeError("plotMultiRepFrame: Cannot import matplotlib")
-            plt = pyplot
+                if self.not_warn:
+                    warnings.warn("plotMultiRepFrame: Cannot import matplotlib, will return list of lines")
+                    self.not_warn = False
+                plt = PltDummy()
+            else:
+                plt = pyplot
         else:
             plt = h_plt
         _check_input(self, Ei_in)
@@ -354,6 +370,8 @@ class ChopperSystem(object):
             plt.set_xlim(0, xmax)
             plt.set_xlabel(r"TOF ($\mu$sec)")
             plt.set_ylabel(r"Distance (m)")
+        if isinstance(plt, PltDummy):
+            return plt.history
 
     def getWidthSquared(self, Ei_in=None):
         return self.getWidth(Ei_in, squared=True)

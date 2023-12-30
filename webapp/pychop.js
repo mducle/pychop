@@ -1,24 +1,18 @@
 console.log("Initialising")
 
 import * as Preact from 'https://esm.sh/preact'
-//import * as PreactHooks from 'https://esm.sh/preact/hooks'
 import { signal } from 'https://esm.sh/@preact/signals'
 import htm from 'https://esm.sh/htm'
 const html = htm.bind(Preact.h)
 
-//console.log("Loaded preact and htm")
+import "https://cdn.plot.ly/plotly-2.27.0.min.js";
+import "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js";
 
-//
-
-//import { loadPyodide } from "./assets/pyodide/pyodide.js";
-import "./assets/plotly-2.27.0.min.js";
-import "./assets/pyodide/pyodide.js";
-
-//console.log("Loaded pyodide and plotly")
+console.log("Loaded preact, pyodide and plotly")
 
 // Initialise python and import PyChop
 let pyodide = await loadPyodide();
-let pychopresponse = await fetch("./assets/pychop.tar.gz");
+let pychopresponse = await fetch("./pychop.tar.gz");
 let pychoptar = await pychopresponse.arrayBuffer();
 pyodide.unpackArchive(pychoptar, "gztar");
 for (const pkg of ["numpy", "pyyaml"]) {
@@ -26,7 +20,6 @@ for (const pkg of ["numpy", "pyyaml"]) {
 }
 
 const pychop = pyodide.pyimport("PyChop");
-//console.log("Loaded pychop")
 
 // Loads instruments from files, we must do this in Python because
 // the Emscripten virtual file system is not accessible from JS
@@ -38,7 +31,7 @@ const instruments = pyodide.runPython(`
   [Instrument(path.join(folder, f)) for f in listdir(folder) if f.endswith('.yaml')]
 `);
 
-console.log("Loaded instruments")
+console.log("Loaded PyChop and instruments")
 
 // Parses instruments into JS arrays to construct the preact UI
 let instnames = [], instindx = {}, reps = [];
@@ -66,34 +59,6 @@ for (const inst of instruments) {
     phases.push([])
   }
 }
-
-/*
-console.log(instnames)
-console.log(choppers)
-console.log(reps)
-console.log(maxfreqs)
-console.log(frqnames)
-console.log(deffreqs)
-console.log(phases)
-
-const instnames = [ "ARCS", "CNCS", "HYSPEC", "LET", "MAPS", "MARI", "MERLIN", "SEQUOIA" ]
-const instindx = { ARCS: 0, CNCS: 1, HYSPEC: 2, LET: 3, MAPS: 4, MARI:5, MERLIN:6, SEQUOIA: 7 }
-const choppers = [ [ "ARCS-100-1.5-AST", "ARCS-100-1.5-SMI", "ARCS-700-0.5-AST", "ARCS-700-1.5-AST", "ARCS-700-1.5-SMI", "SEQ-100-2.0-AST", "SEQ-700-3.5-AST" ],
-  [ "High Flux", "High Resolution", "Intermediate" ],
-  [ "OnlyOne" ],
-  [ "High Flux", "High Resolution", "Intermediate" ],
-  [ "A", "B", "S" ],
-  [ "A", "B", "C", "G", "R", "S" ],
-  [ "G", "S" ],
-  [ "ARCS-100-1.5-AST", "ARCS-100-1.5-SMI", "ARCS-700-0.5-AST", "ARCS-700-1.5-AST", "ARCS-700-1.5-SMI", "Fine", "SEQ-100-2.0-AST", "SEQ-700-3.5-AST", "Sloppy" ]
-]
-const reps = [ 60, 60, 60, 10, 50, 50, 50, 60 ]
-const maxfreqs = [ [ 600 ], [ 300, 300 ], [ 420 ], [ 300, 300 ], [ 600, 100 ], [ 600 ], [ 600 ], [ 600 ] ]
-const frqnames = [ [ "Frequency" ], [ "Resolution disk frequency", "Fermi frequency" ], [ "Frequency" ],
-[ "Resolution frequency", "Pulse remover frequency" ], [ "Fermi frequency", "Disk frequency" ], [ "Frequency" ], [ "Frequency" ], [ "Frequency" ] ]
-const deffreqs = [ [300], [300, 60], [180], [240, 120], [400, 50], [400], [400], [300] ]
-const phases = [ [], [], [], { "id": [ 1 ], "name": [ "Chopper 2 phase delay time" ], "def": [ 5 ] }, { "id": [ 0 ], "name": [ "Multirep mode number" ], "def": [ "1" ] }, { "id": [ 0 ], "name": [ "Disk chopper slot index" ], "def": [ "0" ] }, { "id": [ 0 ], "name": [ "Disk chopper phase delay time" ], "def": [ 1500 ] }, [] ]
-*/
 
 // Defines the signals which hold current state values for calculation
 const curr_inst = signal(instnames[0]);
@@ -150,7 +115,7 @@ class PyChopFrequencies extends Preact.Component {
 class PyChopPhaseSingle extends Preact.Component {
   phasechange = (ev) => {
     //console.log("Callback of phase " + this.props.id + " with value " + ev.target.value)
-    curr_phase.value[this.props.id] = Number(ev.target.value)
+    curr_phase.value[this.props.id] = ev.target.value
   }
   render({ instid, id }, _) {
     return html`
@@ -216,6 +181,8 @@ class PyChopInstrument extends Preact.Component {
     curr_inst.value = ev.target.value
     curr_chopper.value = choppers[instindx[curr_inst.value]][0]
     curr_freq.value = deffreqs[instindx[curr_inst.value]]
+    curr_phase.value = phases[instindx[curr_inst.value]].def
+  console.log(curr_inst.value + " " + curr_chopper.value + " " + curr_freq.value + " " + curr_ei.value + " " + curr_phase.value)
   }
   eichange = (ev) => {
     curr_ei.value = Number(ev.target.value)
@@ -252,33 +219,30 @@ const panel = document.getElementById("ControlPanel")
 Preact.render(html`<${PyChopInstrument} />`, panel)
 
 // Defines the layout of the different graphs
-const p0 = {x:[0], y:[0]}
-const lgl = {x:1, y:1, xanchor:'right'}
-const rsp = {responsive: true}
-//const p2l = {grid: {rows:1, columns:2, pattern:'independent'}, legend:lgl,
-//  yaxis: {title: 'Flux (n/cm²/s)'}, yaxis2: {title: 'Elastic Resolution FWHM (meV)'} }
+const p0 = {x:[0], y:[0]}, lgl = {x:1, y:1, xanchor:'right'}
 const flxstr = 'Flux (n/cm²/s)', elstr = 'Elastic Resolution FWHM (meV)';
-const eistr = 'Incident Energy (meV)', chstr = 'Chopper Frequency (Hz)', qstr = '|Q| (Å⁻¹)';
+const eistr = 'Incident Energy (meV)', chstr = 'Chopper Frequency (Hz)';
 const restab = document.getElementById("ResolutionPlot")
 const reslayout = {xaxis: {title: 'Energy Transfer (meV)'}, yaxis: {title: 'ΔE (meV FWHM)'}, legend:lgl}
-Plotly.newPlot(restab, [p0], reslayout, rsp)
+Plotly.newPlot(restab, [p0], reslayout, {responsive: true})
 const fluxei = document.getElementById("FluxEiPlot")
-//const fluxeilayout = {...p2l, ...{xaxis: {title: eistr}, xaxis2: {title: eistr}}}
-//Plotly.newPlot(fluxei, [p0, {...p0, ...{xaxis:'x2', yaxis:'y2'}}], fluxeilayout, {responsive: true})
-//const fluxfreq = document.getElementById("FluxFreqPlot")
-//const fluxfreqlayout = {...p2l, ...{xaxis: {title: chstr}, xaxis2: {title: chstr}}}
-//Plotly.newPlot(fluxfreq, [p0, {...p0, ...{xaxis:'x2', yaxis:'y2'}}], fluxfreqlayout, {responsive: true})
 const fleila = {xaxis: {title: eistr}, yaxis: {title: flxstr}, legend:lgl}
-Plotly.newPlot(fluxei, [p0], fleila, rsp)
+Plotly.newPlot(fluxei, [p0], fleila, {responsive: true})
 const resei = document.getElementById("ResEiPlot")
 const reeila = {xaxis: {title: eistr}, yaxis: {title: elstr}, legend:lgl}
-Plotly.newPlot(resei, [p0], reeila, rsp)
+Plotly.newPlot(resei, [p0], reeila, {responsive: true})
 const fluxfreq = document.getElementById("FluxFreqPlot")
 const flfqla = {xaxis: {title: chstr}, yaxis: {title: flxstr}, legend:lgl}
-Plotly.newPlot(fluxfreq, [p0], flfqla, rsp)
+Plotly.newPlot(fluxfreq, [p0], flfqla, {responsive: true})
 const resfreq = document.getElementById("ResFreqPlot")
 const refqla = {xaxis: {title: chstr}, yaxis: {title: elstr}, legend:lgl}
-Plotly.newPlot(resfreq, [p0], refqla, rsp)
+Plotly.newPlot(resfreq, [p0], refqla, {responsive: true})
+const tdplot = document.getElementById("TimeDistancePlot")
+const tdlay = {xaxis: {title: "ToF (µs)"}, yaxis: {title: "Distance (m)"}, showlegend:false}
+Plotly.newPlot(tdplot, [p0], tdlay, {responsive: true})
+const qeplot = document.getElementById("QEPlot")
+const qelay = {xaxis: {title: "|Q| (Å⁻¹)"}, yaxis: {title: "Energy Transfer (meV)"}, legend:lgl}
+Plotly.newPlot(qeplot, [p0], qelay, {responsive: true})
 
 // Helper functions
 function linspace(start, stop, num, endpoint = true) {
@@ -286,8 +250,9 @@ function linspace(start, stop, num, endpoint = true) {
   const step = (stop - start) / div;
   return Array.from({length: num}, (_, i) => start + step * i);
 }
-let d_ei = {inst:'None', chop:'None', freq:0}
-let d_fq = {inst:'None', chop:'None', ei:0}
+const E2Q = 0.48259640220781652;
+const bc = '#00f', kc = '#000', wc = '#fff', rc = '#f00', mc = '#f0f';
+let d_ei = {inst:'None', chop:'None', freq:0}, d_fq = {inst:'None', chop:'None', ei:0};
 
 // Runs the PyChop calculations and plots the data 
 function runCalc() {
@@ -297,12 +262,19 @@ function runCalc() {
   const multirep_cb = document.getElementById("multirep_checkbox")
   const is_hold = hold_cb.checked, is_multirep = multirep_cb.checked
   const instid = instindx[curr_inst.value], inst = instruments[instid]
-  inst.setChopper(curr_chopper.value, curr_freq.value)
+  inst.setChopper(curr_chopper.value)
   inst.setEi(curr_ei.value)
+  if (curr_phase.value.length > 0) {
+    console.log('Setting phase')
+    inst.setFrequency(curr_freq.value, curr_phase.value)
+  } else {
+    inst.setFrequency(curr_freq.value)
+  }
   if (!is_hold) {
     if (restab.data.length > 0) {
       Plotly.deleteTraces(restab, Array(restab.data.length).fill(1).map((_,i) => i))
       // For some reason deleteTraces doesn't work properly for Flux-Ei and Flux-Freqs graphs...
+      Plotly.deleteTraces(qeplot, Array(qeplot.data.length).fill(1).map((_,i) => i))
     }
   }
   const labinst = curr_inst.value + '_' + curr_chopper.value + '_'
@@ -324,15 +296,41 @@ function runCalc() {
     Plotly.addTraces(restab, [{x:en, y:res, type:'scatter', 
                                name:labfreq + curr_ei.value + 'meV_' + flux + 'n/cm2/s'}])
   }
+  // Plots the time-frame (must do it here as Flux-Freq changes inst internal state)
+  if (choppers[instid].length > 1) {
+    const tdframe = inst.plotMultiRepFrame().toJs()
+    //console.log(tdframe)
+    let bx = [], by = [], kx = [], ky = [], wx = [], wy = [], mx = [], my = [], rx = [], ry = [];
+    let tx = {x:[], y:[], mode:'text', text:[]};
+    for (const l of tdframe) {
+      if (l[0] === 'plot') {
+        const x = [].slice.call(l[1][0]), y = [].slice.call(l[1][1]);
+        switch (l[2].get('c')) {
+          case 'b': bx = bx.concat(x.concat([null])); by = by.concat(y.concat([null])); break;
+          case 'k': kx = kx.concat(x.concat([null])); ky = ky.concat(y.concat([null])); break;
+          case 'white': wx = wx.concat(x.concat([null])); wy = wy.concat(y.concat([null])); break;
+          case 'm': mx = mx.concat(x.concat([null])); my = my.concat(y.concat([null])); break;
+          case 'r': rx = rx.concat(x.concat([null])); ry = ry.concat(y.concat([null])); break;
+        }
+      } else if (l[0] === 'text') {
+        tx.x.push(l[1][0]); tx.y.push(l[1][1]); tx.text.push(l[1][2]);
+      }
+    }
+    Plotly.react(tdplot, [{x:kx, y:ky, line:{color:kc, width:3}}, {x:wx, y:wy, line:{color:wc, width:3}},
+                          {x:bx, y:by, line:{color:bc, width:3}}, {x:mx, y:my, line:{color:mc, width:3}},
+                          {x:rx, y:ry, line:{color:rc, width:3}}, tx], tdlay)
+    Plotly.relayout(tdplot, {'xaxis.range':[0, 1000000/reps[instid]]})
+  } else {
+    Plotly.react(tdplot, [{x:[0], y:[0]}], tdlay)
+  }
   if (curr_inst.value != d_ei.inst || curr_chopper.value != d_ei.chop || curr_freq.value[0] != d_ei.freq) {
     //console.log('Calculating Ei-dep')
     let flux = [], elres = [];
-    const eis = linspace(Math.max(inst.emin, 0.1), inst.emax, 25)
+    const eis = linspace(Math.max(inst.emin, 0.1), inst.emax, 200)
     for (const ei of eis) {
       flux.push(Number(inst.getFlux(ei).toJs()))
       elres.push(Number(inst.getResolution(0.0, ei).toJs()))
     }
-    //Plotly.addTraces(fluxei, [{x:eis, y:flux, name:labfreq}, {x:eis, y:elres, xaxis:'x2', yaxis:'y2'}])
     if (is_hold) {
       Plotly.addTraces(fluxei, [{x:eis, y:flux, type:'scatter', name:labfreq}])
       Plotly.addTraces(resei, [{x:eis, y:elres, type:'scatter', name:labfreq}])
@@ -344,20 +342,29 @@ function runCalc() {
   }
   if (curr_inst.value != d_fq.inst || curr_chopper.value != d_fq.chop || curr_ei.value != d_fq.ei) {
     //console.log('Calculating Freq-dep')
-    let flux = [], elres = [];
+    const ei = curr_ei.value, en = linspace(-ei/5, ei, 100), enr = en.toReversed();
+    let flux = [], elres = [], e2 = [], q2 = [];
     const fqs = Array(maxfreqs[instid][0] / reps[instid] + 1).fill().map((_, idx) => idx * reps[instid])
     for (const freq of fqs) {
       inst.setFrequency([freq].concat(curr_freq.value.slice(1)))
-      flux.push(Number(inst.getFlux(curr_ei.value).toJs()))
-      elres.push(Number(inst.getResolution(0.0, curr_ei.value).toJs()))
+      flux.push(Number(inst.getFlux(ei).toJs()))
+      elres.push(Number(inst.getResolution(0.0, ei).toJs()))
     }
-    //Plotly.addTraces(fluxfreq, [{x:fqs, y:flux, name:labei}, {x:fqs, y:elres, xaxis:'x2', yaxis:'y2'}])
     if (is_hold) {
       Plotly.addTraces(fluxfreq, [{x:fqs, y:flux, type:'scatter', name:labei}])
       Plotly.addTraces(resfreq, [{x:fqs, y:elres, type:'scatter', name:labei}])
     } else {
       Plotly.react(fluxfreq, [{x:fqs, y:flux, type:'scatter', name:labei}], flfqla)
       Plotly.react(resfreq, [{x:fqs, y:elres, type:'scatter', name:labei}], refqla)
+    }
+    // Also plots Q-E here which depends only on Ei (so only plot if Ei changes, not chopper)
+    if (curr_inst.value != d_fq.inst || curr_ei.value != d_fq.ei) {
+      for (const tth of inst.detector.tthlims.toJs().map((v) => Math.PI * v / 180)) {
+        const q = en.map((v) => Math.sqrt(E2Q * (2*ei - v - 2*Math.sqrt(ei*(ei - v)) * Math.cos(tth))) );
+        q2 = q2.concat(q.toReversed().concat(q).concat([null]))
+        e2 = e2.concat(enr.concat(en).concat([null]))
+      }
+      Plotly.addTraces(qeplot, {x:q2, y:e2, type:'scatter', name:labei})
     }
     d_fq = {inst:curr_inst.value, chop:curr_chopper.value, ei:curr_ei.value}
   }
