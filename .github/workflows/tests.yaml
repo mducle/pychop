@@ -2,7 +2,13 @@ name: Run test and coverage
 
 on:
     push:
+      branches: [main]
     pull_request:
+      branches: [main]
+      types: [opened, reopened, synchronize]
+    release:
+      types: [published]
+    workflow_dispatch:
 
 jobs:
   build:
@@ -10,7 +16,9 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Run tests
       run: |
@@ -23,3 +31,30 @@ jobs:
       uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
+
+    - name: Upload webapp
+      if: ${{ github.event_name == 'release' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+      run: |
+        cp -rpa webapp webtmp
+        tar zcf webtmp/pychop.tar.gz --exclude __main__.py --exclude PyChopGui.py --exclude __pycache__ PyChop/
+        git checkout --force gh-pages
+        git config --global user.email "actions@github.com"
+        git config --global user.name "Github Actions"
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          git rm -rf $GITHUB_REF || true
+          rm -rf $GITHUB_REF
+          mv webtmp $GITHUB_REF
+          git add $GITHUB_REF
+          git commit --allow-empty -m "Update web-app files for release $GITHUB_REF"
+        else
+          git rm -rf unstable/* || true
+          mv webtmp/* unstable/*
+          git add unstable
+          git commit --allow-empty -m "Update web-app files for update $GITHUB_SHA"
+        fi
+        remote_repo="https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/mducle/pychop.git"
+        git push ${remote_repo} HEAD:gh-pages --follow-tags
+
+    - name: Setup tmate session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
