@@ -85,6 +85,17 @@ def soft_hat(x, p):
     return y
 
 
+class PltDummy(object):
+    # Class to act as a dummy saving all "plot" and "text" commands to a list
+    def __init__(self):
+        self.history = []
+    def __getattr__(self, name):
+        def passthrough(*args, **kwargs):
+            if name == 'plot' or name == 'text':
+                self.history.append([name, args, kwargs])
+        return passthrough
+
+
 class FermiChopper(object):
     """
     Class which represents a Fermi chopper package
@@ -159,6 +170,7 @@ class ChopperSystem(object):
         self._parse_variants()
         self.phase = self.defaultPhase
         self.frequency = self.default_frequencies
+        self.not_warn = True
 
     def __repr__(self):
         return self.name if self.name else "Undefined disk chopper system"
@@ -273,7 +285,8 @@ class ChopperSystem(object):
         if argdict["freq"]:
             self.frequency = argdict["freq"]
         if argdict["phase"]:
-            self.phase = argdict["phase"]
+            self.phase = [str(p) if isinstance(self.defaultPhase[i], str) else float(p)
+                          for i, p in enumerate(argdict["phase"])]
 
     def getFrequency(self):
         return self.frequency
@@ -290,7 +303,7 @@ class ChopperSystem(object):
         return self.ei
 
     def getAllowedEi(self, Ei_in=None):
-        return set(np.round(self._MulpyRepDriver(Ei_in, calc_res=False)[0], decimals=4))
+        return list(set(np.round(self._MulpyRepDriver(Ei_in, calc_res=False)[0], decimals=4)))
 
     def plotMultiRepFrame(self, h_plt=None, Ei_in=None, frequency=None, first_rep=False):
         """
@@ -301,8 +314,12 @@ class ChopperSystem(object):
             try:
                 from matplotlib import pyplot
             except ImportError:
-                raise RuntimeError("plotMultiRepFrame: Cannot import matplotlib")
-            plt = pyplot
+                if self.not_warn:
+                    warnings.warn("plotMultiRepFrame: Cannot import matplotlib, will return list of lines")
+                    self.not_warn = False
+                plt = PltDummy()
+            else:
+                plt = pyplot
         else:
             plt = h_plt
         _check_input(self, Ei_in)
@@ -354,6 +371,8 @@ class ChopperSystem(object):
             plt.set_xlim(0, xmax)
             plt.set_xlabel(r"TOF ($\mu$sec)")
             plt.set_ylabel(r"Distance (m)")
+        if isinstance(plt, PltDummy):
+            return plt.history
 
     def getWidthSquared(self, Ei_in=None):
         return self.getWidth(Ei_in, squared=True)
@@ -604,14 +623,8 @@ class Moderator(object):
 
     def getWidthSquared(self, Ei):
         """Returns the squared time gaussian FWHM width due to the sample in s^2"""
-        if hasattr(self, "width_interp"):
-            wavelength = np.sqrt(E2L / (Ei if not hasattr(Ei, "__len__") else Ei[0]))
-            if wavelength >= self.wmn:
-                # Data is obtained from measuring widths of powder Bragg peaks in backscattering
-                # At low wavelengths / high energies, the peaks are too close together to discern
-                # so there is no measurements, but the analytical expressions should still be good.
-                width = self.width_interp(min([wavelength, self.wmx])) ** 2 / 1e12
-                return (width * SIGMA2FWHMSQ) if self.measured_width["isSigma"] else width
+        if hasattr(self, "width_interp") or self.imod == 3:
+            return self.getWidth(Ei) ** 2
         return self.getAnalyticWidthsSquared(Ei)
 
     def getWidth(self, Ei):
@@ -619,13 +632,16 @@ class Moderator(object):
         if hasattr(self, "width_interp"):
             wavelength = np.sqrt(E2L / (Ei if not hasattr(Ei, "__len__") else Ei[0]))
             if wavelength >= self.wmn:
+                # Data is obtained from measuring widths of powder Bragg peaks in backscattering
+                # At low wavelengths / high energies, the peaks are too close together to discern
+                # so there is no measurements, but the analytical expressions should still be good.
                 width = self.width_interp(min([wavelength, self.wmx])) / 1e6  # Table has widths in microseconds
                 return width * SIGMA2FWHM if self.measured_width["isSigma"] else width
         if self.imod == 3:
             # Mode for LET - output of polynomial is FWHM in us
             return np.polyval(self.mod_pars, np.sqrt(E2L / Ei)) / 1e6
         else:
-            return np.sqrt(self.getAnalyticWidthSquared(Ei))
+            return np.sqrt(self.getAnalyticWidthsSquared(Ei))
 
     def getFlux(self, Ei):
         """Returns the white beam flux estimate from either measured data (preferred) or analytical model (backup)"""
@@ -854,7 +870,7 @@ class Instrument(object):
         Ei = _check_input(self.chopper_system, Ei_in)
         if Etrans is None:
             Etrans = np.linspace(0.05, 0.95, 19, endpoint=True)
-        return [self.getResolution(Etrans * ei, ei, frequency) for ei in self.getAllowedEi(Ei)]
+        return [self.getResolution(np.array(Etrans) * ei, ei, frequency) for ei in self.getAllowedEi(Ei)]
 
     def getVanVar(self, Ei_in=None, frequency=None, Etrans=0):
         """Calculates the time squared FWHM in s^2 at the sample (Vanadium widths) for different components"""

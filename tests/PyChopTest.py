@@ -13,10 +13,13 @@ import builtins
 import warnings
 import numpy as np
 
-from PyChop import PyChop2
-
 
 class PyChop2Tests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        from PyChop import PyChop2
+        cls.PyChop2 = PyChop2
 
     # Tests the Fermi chopper instruments
     def test_pychop_fermi(self):
@@ -24,7 +27,7 @@ class PyChop2Tests(unittest.TestCase):
         res = []
         flux = []
         for inc, instname in enumerate(instnames):
-            chopobj = PyChop2(instname)
+            chopobj = self.PyChop2(instname)
             # Code should give an error if the chopper settings and Ei have
             # not been set.
             self.assertRaises(ValueError, chopobj.getResolution)
@@ -44,7 +47,7 @@ class PyChop2Tests(unittest.TestCase):
         self.assertLess(res[1][0], res[2][0])
         # Now tests the standalone function
         for inc, instname in enumerate(instnames):
-            rr, ff = PyChop2.calculate(instname, 's', 200, 18, 0)
+            rr, ff = self.PyChop2.calculate(instname, 's', 200, 18, 0)
             self.assertAlmostEqual(rr[0], res[inc][0], places=7)
             self.assertAlmostEqual(ff, flux[inc], places=7)
 
@@ -54,7 +57,7 @@ class PyChop2Tests(unittest.TestCase):
         res = []
         flux = []
         for inc, variant in enumerate(variants):
-            chopobj = PyChop2('LET', variant)
+            chopobj = self.PyChop2('LET', variant)
             # Checks that it instantiates the correct variant
             self.assertTrue(variant in chopobj.getChopper())
             # Code should give an error if the chopper settings and Ei have
@@ -73,12 +76,12 @@ class PyChop2Tests(unittest.TestCase):
         self.assertLessEqual(res[1][0], res[0][0])
         # Now tests the standalone function
         for inc, variant in enumerate(variants):
-            rr, ff = PyChop2.calculate('LET', variant, 200, 18, 0)
+            rr, ff = self.PyChop2.calculate('LET', variant, 200, 18, 0)
             self.assertAlmostEqual(rr[0], res[inc][0], places=7)
             self.assertAlmostEqual(ff, flux[inc], places=7)
 
     def test_pychop_invalid_ei(self):
-        chopobj = PyChop2('MARI', 'G', 400.)
+        chopobj = self.PyChop2('MARI', 'G', 400.)
         chopobj.setEi(120)
         with warnings.catch_warnings(record=True) as w:
             res = chopobj.getResolution(130.)
@@ -98,9 +101,13 @@ class PyChop2Tests(unittest.TestCase):
         ref_flux = [2055.562054927915, 128986.24972543867, 0.014779264739956933, 45438.33797146135,
                     24196.496233770937, 5747.118187298609, 22287.647098883135, 4063.3113893387676]
         for inst, ch, frq, ei, res0, flux0 in zip(instruments, choppers, freqs, eis, ref_res, ref_flux):
-            res, flux = PyChop2.calculate(inst, ch, frq, ei, 0)
+            res, flux = self.PyChop2.calculate(inst, ch, frq, ei, 0)
             np.testing.assert_allclose(res[0], res0, rtol=1e-7, atol=0)
             np.testing.assert_allclose(flux[0], flux0, rtol=1e-7, atol=0)
+
+    #def test_pychop_imports(self):
+    #    # Tests we can run without scipy and matplotlib (not used for webapp)
+
 
 
 class MockedModule(mock.MagicMock):
@@ -386,6 +393,50 @@ class PyChopGuiTests(unittest.TestCase):
         self.window.instSciAct.isChecked = mock.MagicMock(return_value=True)
         self.window.setChopper('G')
         self.window.widgets['Chopper0Phase']['Edit'].show.assert_called()
+
+
+class PyChopImportTests(unittest.TestCase):
+    # Tests we can run without scipy and matplotlib (not used for webapp)
+
+    def test_no_scipy(self):
+        # Tests that without scipy, the answers are _almost_ the same
+        ref_vals = [0.08079912729715726, 45438.33797146135] # Calculated with scipy
+        real_import = builtins.__import__
+        def my_import_func(name, globals=None, locals=None, fromlist=(), level=0):
+            if 'scipy' in name:
+                raise ModuleNotFoundError
+            else:
+                return real_import(name, globals, locals, fromlist, level)
+        # Now remove reference to scipy.interpolate if it's already been imported
+        import sys
+        savemods = {}
+        for mod in ['scipy.interpolate'] + [m for m in sys.modules if m.startswith('PyChop')]:
+            if mod in sys.modules:
+                savemods[mod] = sys.modules[mod]
+                del sys.modules[mod]
+        with patch('builtins.__import__', my_import_func):
+            from PyChop import PyChop2
+            res, flux = PyChop2.calculate('LET', 'High Flux', [240, 120], 3.7, 0)
+            # Resolution does not require interpolation
+            np.testing.assert_allclose(res, ref_vals[0], rtol=1e-7, atol=0)
+            np.testing.assert_allclose(flux, ref_vals[1], rtol=1e-2, atol=0)
+        for modname, mod in savemods.items():
+            sys.modules[modname] = mod
+
+    def test_no_maptlotlib(self):
+        # Tests that without matplotlib, plotMultiRepFrame returns a list of lines
+        real_import = builtins.__import__
+        def my_import_func(name, globals=None, locals=None, fromlist=(), level=0):
+            if 'matplotlib' in name:
+                raise ModuleNotFoundError
+            else:
+                return real_import(name, globals, locals, fromlist, level)
+        with patch('builtins.__import__', my_import_func):
+            from PyChop import PyChop2
+            pcobj = PyChop2('ARCS', 'ARCS-100-1.5-AST', 300)
+            with self.assertWarns(Warning):
+                rv = pcobj.chopper_system.plotMultiRepFrame(Ei_in=120)
+                self.assertTrue(rv is not None and len(rv) > 0)
 
 
 if __name__ == "__main__":

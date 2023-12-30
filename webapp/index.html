@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>PyChop in browser</title>
+    <script src="pychop.js" type="module"></script>
+    <link rel="stylesheet" href="pychop.css">
+  </head>
+  <body>
+    <div class="main-wrapper">
+
+      <div id="ControlPanel">
+        <p> Please wait, loading Python ... </p>
+        <noscript>Error: This app only works with Javascript enabled.</noscript>
+      </div>
+
+      <div class="tab-wrapper">
+        <div class="tabs">
+          <div class="tab">
+            <input type="radio" name="css-tabs" id="Resolution" checked class="tab-switch">
+            <label for="Resolution" class="tab-label">Resolution</label>
+            <div class="tab-content" id="ResolutionPlot"> </div>
+          </div>
+          <div class="tab">
+            <input type="radio" name="css-tabs" id="FluxEi" checked class="tab-switch">
+            <label for="FluxEi" class="tab-label">Flux-Ei</label>
+            <div class="tab-content" id="EiPlots">
+              <div style="float:left; width:50%; height:100%" id="FluxEiPlot"></div>
+              <div style="float:left; width:50%; height:100%" id="ResEiPlot"></div>
+            </div>
+          </div>
+          <div class="tab">
+            <input type="radio" name="css-tabs" id="FluxFreq" checked class="tab-switch">
+            <label for="FluxFreq" class="tab-label">Flux-Freq</label>
+            <div class="tab-content" id="FreqPlots">
+              <div style="float:left; width:50%; height:100%" id="FluxFreqPlot"></div>
+              <div style="float:left; width:50%; height:100%" id="ResFreqPlot"></div>
+            </div>
+          </div>
+          <div class="tab">
+            <input type="radio" name="css-tabs" id="TimeDistance" checked class="tab-switch">
+            <label for="TimeDistance" class="tab-label">Time-Distance</label>
+            <div class="tab-content" id="TimeDistancePlot"> </div>
+          </div>
+          <div class="tab">
+            <input type="radio" name="css-tabs" id="QE" checked class="tab-switch">
+            <label for="QE" class="tab-label">Q-E</label>
+            <div class="tab-content" id="QEPlot"> </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>

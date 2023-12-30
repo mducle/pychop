@@ -194,6 +194,15 @@ def calcChopTimes(efocus, freq, instrumentpars, chop2Phase=5):
     uSec = 1e6  # seconds to microseconds
     lam = np.sqrt(81.8042 / efocus)  # convert from energy to wavelenth
 
+    # if there's only one disk we prepend a dummy disk with full opening at zero distance
+    # so that the distance calculations (which needs the difference between disk pos) works
+    if len(instrumentpars[0]) == 1:
+        for d1, i in zip([[0], [1], None, [3141], [10], [500], [1]], range(7)):
+            instrumentpars[i] = (d1 + instrumentpars[i]) if d1 is not None else [d1, instrumentpars[i]]
+        prepend_disk = True
+    else:
+        prepend_disk = False
+
     # extracts the instrument parameters
     dist, nslot, slots_ang_pos, slot_width, guide_width, radius, numDisk = tuple(instrumentpars[:7])
     samp_det, chop_samp, rep, tmod, frac_ei, ph_ind_v = tuple(instrumentpars[7:])
@@ -218,6 +227,9 @@ def calcChopTimes(efocus, freq, instrumentpars, chop2Phase=5):
     # do we want multiple frames?
     source_rep, nframe = tuple(rep[:2]) if (hasattr(rep, "__len__") and len(rep) > 1) else (rep, 1)
     p_frames = source_rep / nframe
+
+    if prepend_disk:
+        freq = np.array([source_rep, freq[0]])
 
     # first we optimise on the main Ei
     for i in range(len(dist)):
