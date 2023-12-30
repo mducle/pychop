@@ -285,7 +285,8 @@ class ChopperSystem(object):
         if argdict["freq"]:
             self.frequency = argdict["freq"]
         if argdict["phase"]:
-            self.phase = argdict["phase"]
+            self.phase = [str(p) if isinstance(self.defaultPhase[i], str) else float(p)
+                          for i, p in enumerate(argdict["phase"])]
 
     def getFrequency(self):
         return self.frequency

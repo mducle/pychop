@@ -182,7 +182,6 @@ class PyChopInstrument extends Preact.Component {
     curr_chopper.value = choppers[instindx[curr_inst.value]][0]
     curr_freq.value = deffreqs[instindx[curr_inst.value]]
     curr_phase.value = phases[instindx[curr_inst.value]].def
-  console.log(curr_inst.value + " " + curr_chopper.value + " " + curr_freq.value + " " + curr_ei.value + " " + curr_phase.value)
   }
   eichange = (ev) => {
     curr_ei.value = Number(ev.target.value)
@@ -265,7 +264,7 @@ function runCalc() {
   inst.setChopper(curr_chopper.value)
   inst.setEi(curr_ei.value)
   if (curr_phase.value.length > 0) {
-    console.log('Setting phase')
+    //console.log('Setting phase')
     inst.setFrequency(curr_freq.value, curr_phase.value)
   } else {
     inst.setFrequency(curr_freq.value)
@@ -326,7 +325,7 @@ function runCalc() {
   if (curr_inst.value != d_ei.inst || curr_chopper.value != d_ei.chop || curr_freq.value[0] != d_ei.freq) {
     //console.log('Calculating Ei-dep')
     let flux = [], elres = [];
-    const eis = linspace(Math.max(inst.emin, 0.1), inst.emax, 200)
+    const eis = linspace(Math.max(inst.emin, 0.1), inst.emax, 100)
     for (const ei of eis) {
       flux.push(Number(inst.getFlux(ei).toJs()))
       elres.push(Number(inst.getResolution(0.0, ei).toJs()))
@@ -344,7 +343,7 @@ function runCalc() {
     //console.log('Calculating Freq-dep')
     const ei = curr_ei.value, en = linspace(-ei/5, ei, 100), enr = en.toReversed();
     let flux = [], elres = [], e2 = [], q2 = [];
-    const fqs = Array(maxfreqs[instid][0] / reps[instid] + 1).fill().map((_, idx) => idx * reps[instid])
+    const fqs = Array(maxfreqs[instid][0] / reps[instid]).fill().map((_, idx) => (idx+1) * reps[instid])
     for (const freq of fqs) {
       inst.setFrequency([freq].concat(curr_freq.value.slice(1)))
       flux.push(Number(inst.getFlux(ei).toJs()))
